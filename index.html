@@ -1,0 +1,238 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>IdentityGen - 身份信息生成器</title>
+    <meta name="description"
+        content="Generate realistic US & UK identity information with real addresses, phone numbers and maps.">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link
+        href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&family=JetBrains+Mono:wght@400;500;600&display=swap"
+        rel="stylesheet">
+    <link rel="stylesheet" href="style.css">
+</head>
+
+<body>
+    <!-- Animated background -->
+    <canvas id="particles-canvas"></canvas>
+    <div class="gradient-orb orb-1"></div>
+    <div class="gradient-orb orb-2"></div>
+    <div class="gradient-orb orb-3"></div>
+
+    <header>
+        <a href="index.html" class="logo">
+            <div class="logo-glow"></div>
+            <span class="logo-icon">⚡</span>
+            <span class="logo-text" id="site-logo">IdentityGen</span>
+        </a>
+        <div class="header-actions">
+            <div class="country-switcher">
+                <button class="country-btn active" data-country="us" id="btn-us">
+                    <span class="country-flag">🇺🇸</span>
+                    <span data-i18n="nav_us">美国</span>
+                </button>
+                <button class="country-btn" data-country="uk" id="btn-uk">
+                    <span class="country-flag">🇬🇧</span>
+                    <span data-i18n="nav_uk">英国</span>
+                </button>
+            </div>
+            <button class="theme-btn" id="theme-btn" onclick="toggleTheme()" title="切换主题 / Toggle Theme">🌙</button>
+            <button class="lang-btn" id="lang-btn" onclick="toggleLang()" title="切换语言 / Switch Language">
+                <span class="lang-globe">🌐</span>
+                <span id="lang-text">EN</span>
+            </button>
+            <a href="admin.html" class="icon-btn" id="admin-btn" title="后台管理">
+                <svg width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                    <path
+                        d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.08a2 2 0 0 1-1-1.74v-.5a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z" />
+                    <circle cx="12" cy="12" r="3" />
+                </svg>
+            </a>
+        </div>
+    </header>
+
+    <main>
+        <!-- Hero -->
+        <section class="hero">
+            <div class="hero-badge" data-i18n="hero_badge">🔥 实时 API 数据驱动</div>
+            <h1 data-i18n="hero_title">随机身份信息生成器</h1>
+            <p class="hero-desc" data-i18n="hero_sub">一键生成真实格式的美国和英国个人信息，支持地址、电话、邮箱等</p>
+        </section>
+
+        <!-- Controls — prominent region selector -->
+        <div class="controls-bar">
+            <div class="select-group">
+                <label for="region-select" data-i18n="select_label">选择地区</label>
+                <div class="select-wrapper">
+                    <select id="region-select"></select>
+                    <svg class="select-chevron" width="16" height="16" fill="none" stroke="currentColor"
+                        stroke-width="2.5" viewBox="0 0 24 24">
+                        <path d="m6 9 6 6 6-6" />
+                    </svg>
+                </div>
+            </div>
+            <button class="gen-btn" id="gen-btn" onclick="generateIdentity()">
+                <span class="gen-btn-icon">
+                    <svg width="20" height="20" fill="none" stroke="currentColor" stroke-width="2.5"
+                        viewBox="0 0 24 24">
+                        <path d="M21 12a9 9 0 1 1-6.219-8.56" />
+                        <path d="M21 3v6h-6" />
+                    </svg>
+                </span>
+                <span data-i18n="generate_btn">生成新身份</span>
+            </button>
+        </div>
+
+        <!-- Loading -->
+        <div class="loading-overlay" id="loading" style="display:none">
+            <div class="spinner"></div>
+            <p data-i18n="loading_text">正在获取真实地址数据...</p>
+        </div>
+
+        <!-- Cards Grid -->
+        <div class="info-grid" id="info-grid">
+            <div class="info-card span-2" id="card-name" onclick="copyField(this)">
+                <div class="card-icon">👤</div>
+                <div class="card-body">
+                    <div class="card-label" data-i18n="label_name">姓名</div>
+                    <div class="card-value" id="val-name">—</div>
+                </div>
+                <div class="card-badge" data-i18n="click_copy">点击复制</div>
+            </div>
+            <div class="info-card" id="card-gender" onclick="copyField(this)">
+                <div class="card-icon">⚧</div>
+                <div class="card-body">
+                    <div class="card-label" data-i18n="label_gender">性别</div>
+                    <div class="card-value" id="val-gender">—</div>
+                </div>
+                <div class="card-badge" data-i18n="click_copy">点击复制</div>
+            </div>
+            <div class="info-card" id="card-dob" onclick="copyField(this)">
+                <div class="card-icon">🎂</div>
+                <div class="card-body">
+                    <div class="card-label" data-i18n="label_dob">出生日期</div>
+                    <div class="card-value" id="val-dob">—</div>
+                </div>
+                <div class="card-badge" data-i18n="click_copy">点击复制</div>
+            </div>
+            <div class="info-card" id="card-phone" onclick="copyField(this)">
+                <div class="card-icon">📱</div>
+                <div class="card-body">
+                    <div class="card-label" data-i18n="label_phone">电话号码</div>
+                    <div class="card-value" id="val-phone">—</div>
+                </div>
+                <div class="card-badge" data-i18n="click_copy">点击复制</div>
+            </div>
+            <div class="info-card" id="card-email" onclick="copyField(this)">
+                <div class="card-icon">✉️</div>
+                <div class="card-body">
+                    <div class="card-label" data-i18n="label_email">电子邮箱</div>
+                    <div class="card-value" id="val-email">—</div>
+                </div>
+                <div class="card-badge" data-i18n="click_copy">点击复制</div>
+            </div>
+            <div class="info-card span-2" id="card-address" onclick="copyField(this)">
+                <div class="card-icon">🏠</div>
+                <div class="card-body">
+                    <div class="card-label" data-i18n="label_street">街道地址</div>
+                    <div class="card-value" id="val-address">—</div>
+                </div>
+                <div class="card-badge" data-i18n="click_copy">点击复制</div>
+            </div>
+            <div class="info-card" id="card-city" onclick="copyField(this)">
+                <div class="card-icon">🏙️</div>
+                <div class="card-body">
+                    <div class="card-label" data-i18n="label_city">城市</div>
+                    <div class="card-value" id="val-city">—</div>
+                </div>
+                <div class="card-badge" data-i18n="click_copy">点击复制</div>
+            </div>
+            <div class="info-card" id="card-state" onclick="copyField(this)">
+                <div class="card-icon">📍</div>
+                <div class="card-body">
+                    <div class="card-label" data-i18n="label_state">州</div>
+                    <div class="card-value" id="val-state">—</div>
+                </div>
+                <div class="card-badge" data-i18n="click_copy">点击复制</div>
+            </div>
+            <div class="info-card" id="card-zip" onclick="copyField(this)">
+                <div class="card-icon">📮</div>
+                <div class="card-body">
+                    <div class="card-label" data-i18n="label_zip">邮编</div>
+                    <div class="card-value" id="val-zip">—</div>
+                </div>
+                <div class="card-badge" data-i18n="click_copy">点击复制</div>
+            </div>
+            <div class="info-card" id="card-ssn" onclick="copyField(this)">
+                <div class="card-icon">🔐</div>
+                <div class="card-body">
+                    <div class="card-label" data-i18n="label_ssn">社会安全号码</div>
+                    <div class="card-value" id="val-ssn">—</div>
+                </div>
+                <div class="card-badge" data-i18n="click_copy">点击复制</div>
+            </div>
+            <div class="info-card" id="card-website" onclick="copyField(this)">
+                <div class="card-icon">🌐</div>
+                <div class="card-body">
+                    <div class="card-label" data-i18n="label_website">个人网站</div>
+                    <div class="card-value" id="val-website">—</div>
+                </div>
+                <div class="card-badge" data-i18n="click_copy">点击复制</div>
+            </div>
+            <!-- Full Address Highlight -->
+            <div class="info-card span-2 card-highlight" id="card-full" onclick="copyField(this)">
+                <div class="card-icon">📋</div>
+                <div class="card-body">
+                    <div class="card-label" data-i18n="label_fulladdr">完整地址</div>
+                    <div class="card-value" id="val-fulladdr">—</div>
+                </div>
+                <div class="card-badge" data-i18n="click_copy">点击复制</div>
+            </div>
+        </div>
+
+        <!-- Action bar -->
+        <div class="action-bar">
+            <button class="action-btn" onclick="copyAll()">
+                <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                    <rect x="9" y="9" width="13" height="13" rx="2" />
+                    <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1" />
+                </svg>
+                <span data-i18n="copy_all">复制全部信息</span>
+            </button>
+        </div>
+
+        <!-- Map -->
+        <section class="map-section">
+            <h2 data-i18n="map_title">📍 地图定位</h2>
+            <div class="map-frame">
+                <iframe id="map-iframe" src="about:blank" allowfullscreen loading="lazy"
+                    referrerpolicy="no-referrer-when-downgrade"></iframe>
+            </div>
+            <p class="map-note" id="map-note"></p>
+        </section>
+    </main>
+
+    <!-- Toast -->
+    <div class="toast-container">
+        <div class="toast" id="toast">
+            <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24">
+                <path d="M20 6 9 17l-5-5" />
+            </svg>
+            <span id="toast-text">已复制!</span>
+        </div>
+    </div>
+
+    <footer>
+        <div class="footer-inner">
+            <p id="footer-text" data-i18n="footer">© 2026 IdentityGen · by <a
+                    href="https://github.com/logdns/IdentityGen" target="_blank">github.com/logdns/IdentityGen</a></p>
+        </div>
+    </footer>
+
+    <script src="data.js"></script>
+    <script src="app.js"></script>
+</body>
+
+</html>
