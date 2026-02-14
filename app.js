@@ -11,8 +11,39 @@ const $ = id => document.getElementById(id);
 const pick = arr => arr[Math.floor(Math.random() * arr.length)];
 const randInt = (min, max) => Math.floor(Math.random() * (max - min + 1)) + min;
 
-const CP = 'idgen_';
-const gc = k => localStorage.getItem(CP + k);
+// Server-side config (loaded from api.php / config.json)
+let serverConfig = {};
+
+async function loadServerConfig() {
+    // Try API endpoints in order: /api (Node.js) → /api.php (PHP) → /config.json (static)
+    const endpoints = ['api', 'api.php', 'config.json'];
+    for (const ep of endpoints) {
+        try {
+            const resp = await fetch(ep);
+            if (!resp.ok) continue;
+            const json = await resp.json();
+            if (ep === 'config.json') {
+                // Direct JSON file — extract public fields
+                serverConfig = {
+                    map_provider: json.map_provider || 'osm',
+                    google_maps_key: json.google_maps_key || '',
+                    site_title: json.site_title || '',
+                    site_footer: json.site_footer || ''
+                };
+            } else if (json.status === 'ok' && json.data) {
+                serverConfig = json.data;
+            } else {
+                continue;
+            }
+            return; // success
+        } catch (e) { /* try next */ }
+    }
+    console.warn('Config load failed, using defaults');
+    serverConfig = {};
+}
+
+// Get config value — reads from serverConfig (server-side)
+const gc = k => serverConfig[k] || '';
 
 // ═══════════════════════════════════════════════
 // i18n
@@ -130,10 +161,12 @@ function toggleTheme() {
 // ═══════════════════════════════════════
 // Init
 // ═══════════════════════════════════════
-document.addEventListener('DOMContentLoaded', () => {
+document.addEventListener('DOMContentLoaded', async () => {
     applyTheme(currentTheme);
     initParticles();
     setupCountryNav();
+    // Load server config before applying i18n and generating identity
+    await loadServerConfig();
     applyI18n();
     populateSelect();
     generateIdentity();

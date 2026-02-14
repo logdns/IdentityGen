@@ -51,11 +51,12 @@
 | 样式 | CSS3（CSS Variables、Glassmorphism） |
 | 逻辑 | 原生 JavaScript（ES2017+） |
 | 字体 | Google Fonts（Inter、JetBrains Mono） |
+| 后端配置 | Node.js（零依赖轻量服务器，读写 JSON 配置文件） |
 | 地址数据 | [OpenStreetMap Nominatim API](https://nominatim.openstreetmap.org/) |
 | 身份数据 | [FakerAPI](https://fakerapi.it/) |
 | 地图展示 | Google Maps Embed |
 
-> ⚡ **纯前端项目**：无需后端服务器，无需数据库，所有配置存储在浏览器 `localStorage` 中。
+> ⚡ **轻量级架构**：零依赖 Node.js 服务器，无需数据库。配置存储在服务端 `config.json` 文件中，后台修改后所有客户端即时生效。主题偏好存储在浏览器 `localStorage` 中。
 
 ---
 
@@ -65,11 +66,11 @@
 identitygen/
 ├── index.html        # 主页面 — 身份信息生成器前端
 ├── admin.html        # 后台管理面板 — 密码保护
+├── server.js         # Node.js 服务器 — 静态文件服务 + 配置 API（零依赖）
+├── config.json       # 配置文件 — 存储密码、API Key、网站设置等
 ├── style.css         # 全局样式 — 亮色/暗色主题
 ├── app.js            # 主逻辑 — 生成、i18n、地图、粒子动画
 ├── data.js           # 静态数据 — 美国/英国州、城市、街道、姓名等
-├── us.js             # 美国专用 Cloudflare Worker 版本（备用）
-├── uk.js             # 英国专用 Cloudflare Worker 版本（备用）
 └── README.md         # 项目文档（本文件）
 ```
 
@@ -77,33 +78,28 @@ identitygen/
 
 ## 🚀 快速开始
 
-### 方式 1：克隆仓库
+### 方式 1：克隆仓库 + 启动服务器
 
 ```bash
 git clone https://github.com/logdns/IdentityGen.git
 cd IdentityGen
-# 直接双击 index.html 在浏览器中打开即可使用
+node server.js
+# 打开 http://localhost:3000
 ```
 
-### 方式 2：本地开发服务器
+### 方式 2：指定端口启动
 
 ```bash
-# 使用 Python
-python -m http.server 8080
+# 方式 A：命令行参数
+node server.js 8080
 
-# 或使用 Node.js
-npx serve .
-
-# 或使用 PHP
-php -S localhost:8080
+# 方式 B：环境变量
+PORT=8080 node server.js
 
 # 然后打开 http://localhost:8080
 ```
 
-### 方式 3：VS Code Live Server
-
-1. 安装 VS Code 扩展 `Live Server`
-2. 右键 `index.html` → `Open with Live Server`
+> 💡 **前提条件**：仅需安装 [Node.js](https://nodejs.org/)（v14+）。无需 `npm install`，零第三方依赖。
 
 ---
 
@@ -133,57 +129,73 @@ php -S localhost:8080
 
 ### 通用部署
 
-IdentityGen 是纯静态网站，可部署到任何支持 HTML 的 Web 服务器：
+IdentityGen 仅需 Node.js 环境，无需安装任何依赖：
 
+```bash
+# 1. 上传所有项目文件到服务器
+# 2. 启动服务器
+node server.js 3000
+
+# 或使用 PM2 持久化运行（推荐生产环境）
+npm install -g pm2
+pm2 start server.js --name identitygen -- 3000
+pm2 save
+pm2 startup
 ```
+
+需要的文件：
+```
+server.js         ← Node.js 服务器（静态文件 + 配置 API）
 index.html
 admin.html
+config.json       ← 配置文件（自动创建）
 style.css
 app.js
 data.js
 ```
 
-将以上文件上传到 Web 服务器的根目录或子目录即可。
+> 💡 如果不需要后台管理功能，也可以直接手动编辑 `config.json` 文件。
 
 ---
 
-### Nginx 部署
+### Nginx 反向代理部署（推荐生产环境）
 
-#### 1. 上传文件
+#### 1. 上传文件并启动 Node.js 服务
 
 ```bash
 # 创建网站目录
 sudo mkdir -p /www/wwwroot/identitygen
 
-# 上传项目文件到该目录
-# 方法: SCP、SFTP、rsync 或手动上传
+# 上传项目文件
 scp -r ./* user@your-server:/www/wwwroot/identitygen/
+
+# 使用 PM2 持久化运行
+cd /www/wwwroot/identitygen
+npm install -g pm2
+pm2 start server.js --name identitygen -- 3000
+pm2 save
+pm2 startup
 ```
 
-#### 2. 配置 Nginx
+#### 2. 配置 Nginx 反向代理
 
 ```nginx
 server {
     listen 80;
     server_name your-domain.com;
 
-    root /www/wwwroot/identitygen;
-    index index.html;
-
     # 安全头
     add_header X-Frame-Options "SAMEORIGIN";
     add_header X-Content-Type-Options "nosniff";
     add_header X-XSS-Protection "1; mode=block";
 
-    # 缓存静态资源
-    location ~* \.(css|js|woff2|png|jpg|ico)$ {
-        expires 30d;
-        add_header Cache-Control "public, immutable";
-    }
-
-    # 入口
+    # 反向代理到 Node.js
     location / {
-        try_files $uri $uri/ /index.html;
+        proxy_pass http://127.0.0.1:3000;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
     }
 
     # 禁止访问隐藏文件
@@ -215,7 +227,8 @@ sudo certbot --nginx -d your-domain.com
 #### 前提条件
 
 - 已安装宝塔面板（[宝塔官网](https://www.bt.cn/)）
-- 已安装 Nginx 或 Apache（推荐 Nginx）
+- 已安装 Nginx
+- 已安装 Node.js（宝塔「软件商店」→ 搜索 `PM2管理器` 安装）
 - 已有域名并解析到服务器 IP（可选，也可使用 IP 直接访问）
 
 #### 步骤 1：创建网站
@@ -226,8 +239,8 @@ sudo certbot --nginx -d your-domain.com
    - **域名**：填写你的域名（如 `id.example.com`）；如果没有域名，填写 `服务器IP:端口`
    - **根目录**：默认即可（如 `/www/wwwroot/id.example.com`）
    - **FTP**：不创建
-   - **数据库**：不创建（纯前端项目不需要数据库）
-   - **PHP 版本**：选择 `纯静态`
+   - **数据库**：不创建（无需数据库）
+   - **PHP 版本**：选择 `纯静态`（后端由 Node.js 提供）
 4. 点击 **「提交」** 创建网站
 
 #### 步骤 2：上传项目文件
@@ -240,6 +253,8 @@ sudo certbot --nginx -d your-domain.com
 4. 点击 **「上传」** 按钮
 5. 选择以下文件上传：
    ```
+   server.js
+   config.json
    index.html
    admin.html
    style.css
@@ -252,7 +267,7 @@ sudo certbot --nginx -d your-domain.com
 
 ```bash
 # 使用 scp 命令
-scp index.html admin.html style.css app.js data.js root@你的服务器IP:/www/wwwroot/id.example.com/
+scp server.js config.json index.html admin.html style.css app.js data.js root@你的服务器IP:/www/wwwroot/id.example.com/
 
 # 或使用 FileZilla 等 SFTP 工具连接上传
 ```
@@ -274,32 +289,42 @@ scp index.html admin.html style.css app.js data.js root@你的服务器IP:/www/w
 4. 点击 **「申请」**
 5. 勾选 **「强制 HTTPS」**
 
-#### 步骤 4：网站设置优化（可选）
+#### 步骤 4：启动 Node.js 服务
 
-1. 点击网站列表中对应站点 → **「设置」**
+1. 在宝塔面板中打开 **「PM2管理器」**（软件商店安装）
+2. 点击 **「添加项目」**
+3. 填写配置：
+   - **启动文件**：`/www/wwwroot/id.example.com/server.js`
+   - **项目名称**：`identitygen`
+   - **运行目录**：`/www/wwwroot/id.example.com`
+   - **端口**：`3000`
+4. 点击 **「确定」** 启动项目
 
-2. **配置默认文档**：确认 `index.html` 在列表最上方
+或者通过 SSH 终端启动：
+```bash
+cd /www/wwwroot/id.example.com
+pm2 start server.js --name identitygen -- 3000
+pm2 save
+```
 
-3. **设置防盗链**（可选）：
-   - 点击 **「防盗链」** → 开启
-   - 允许的域名中添加你的域名
+#### 步骤 5：配置 Nginx 反向代理
 
-4. **配置缓存**（推荐，提升加载速度）：
-   - 点击 **「配置文件」**
-   - 在 `server { }` 块中添加：
-   ```nginx
-   # 缓存静态资源 30 天
-   location ~* \.(css|js|woff2|png|jpg|ico|svg)$ {
-       expires 30d;
-       add_header Cache-Control "public, immutable";
-   }
-   ```
+1. 点击网站列表中对应站点 → **「设置」** → **「配置文件」**
+2. 在 `server { }` 块中添加反向代理配置：
 
-5. **配置 Gzip 压缩**（提升传输速度）：
-   - 在宝塔首页 → **「Nginx 管理」** → **「配置修改」**
-   - 确认 Gzip 已开启（宝塔默认已开启）
+```nginx
+location / {
+    proxy_pass http://127.0.0.1:3000;
+    proxy_set_header Host $host;
+    proxy_set_header X-Real-IP $remote_addr;
+    proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+    proxy_set_header X-Forwarded-Proto $scheme;
+}
+```
 
-#### 步骤 5：验证部署
+3. 保存配置文件
+
+#### 步骤 6：验证部署
 
 1. 打开浏览器访问你的域名或 IP：`https://id.example.com`
 2. 确认前台页面正常加载
@@ -311,12 +336,13 @@ scp index.html admin.html style.css app.js data.js root@你的服务器IP:/www/w
 
 | 问题 | 解决方案 |
 |------|----------|
-| 页面显示 404 | 检查文件是否上传到正确目录，确认 `index.html` 存在 |
+| 页面显示 404 | 检查 Node.js 服务是否正在运行，Nginx 反向代理是否配置正确 |
 | 样式/脚本未加载 | 检查 `style.css`、`app.js`、`data.js` 是否在同一目录 |
 | SSL 证书申请失败 | 确认域名已正确解析到服务器 IP，检查 80 端口是否开放 |
-| 后台无法登录 | 清除浏览器缓存后重试，默认密码为 `admin` |
+| 后台无法登录 | 默认密码为 `admin`，确认 Node.js 服务正在运行 |
+| 后台保存失败 | 检查 `config.json` 文件权限，确保 Node.js 进程有写入权限 |
 | 地图不显示 | 检查是否可以正常访问 Google Maps；如需 API Key，在后台设置中配置 |
-| 中文乱码 | 确认文件编码为 UTF-8，Nginx 配置中添加 `charset utf-8;` |
+| Node.js 服务挂掉 | 使用 PM2 管理进程：`pm2 restart identitygen` |
 
 ---
 
@@ -350,10 +376,10 @@ scp index.html admin.html style.css app.js data.js root@你的服务器IP:/www/w
 ## ❓ 常见问题
 
 ### Q: 这个项目需要后端吗？
-**A:** 不需要。这是一个纯前端项目，所有文件都是静态文件，只需要一个 Web 服务器即可。
+**A:** 需要 Node.js 环境。项目自带一个零依赖的 `server.js`，同时提供静态文件服务和配置管理 API。只需 `node server.js` 一条命令即可启动，无需 `npm install`。如无 Node.js 环境，也可直接手动编辑 `config.json` 文件配置。
 
 ### Q: 数据存储在哪里？
-**A:** 所有配置（密码、API Key、主题偏好等）存储在浏览器的 `localStorage` 中。如果更换浏览器或清除浏览器数据，配置将重置为默认值。
+**A:** 后台配置（密码、API Key、地图服务商、网站标题、页脚）存储在服务端的 `config.json` 文件中，管理员在后台修改后所有用户立即生效。主题偏好（亮色/暗色）作为用户个人设置仍存储在浏览器 `localStorage` 中。
 
 ### Q: 默认管理密码是什么？
 **A:** 默认密码为 `admin`，首次登录后请立即修改。

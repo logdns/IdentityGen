@@ -736,18 +736,56 @@
     <div class="toast-admin" id="toast"></div>
 
     <script>
-        const P = 'idgen_';
-        const gc = k => localStorage.getItem(P + k);
-        const sc = (k, v) => localStorage.setItem(P + k, v);
-        const dc = k => localStorage.removeItem(P + k);
+        // Session state
+        let sessionPassword = '';
+        let currentConfig = {};
 
-        // Login
-        function doLogin() {
-            const stored = gc('password') || 'admin';
-            if (document.getElementById('pwd-input').value === stored) {
+        // ── API helpers ──
+        // Auto-detect working API endpoint (Node.js /api or PHP /api.php)
+        let apiBase = null;
+
+        async function detectAPI() {
+            if (apiBase) return apiBase;
+            for (const ep of ['api', 'api.php']) {
+                try {
+                    const r = await fetch(ep);
+                    if (r.ok) {
+                        const json = await r.json();
+                        if (json.status === 'ok') {
+                            apiBase = ep;
+                            return ep;
+                        }
+                    }
+                } catch (e) { /* try next */ }
+            }
+            return null;
+        }
+
+        async function apiPost(action, body) {
+            const base = await detectAPI();
+            if (!base) return { status: 'error', message: '无法连接后端服务，请确认 server.js 或 api.php 正在运行' };
+            try {
+                const r = await fetch(`${base}?action=${action}`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(body)
+                });
+                return await r.json();
+            } catch (e) {
+                return { status: 'error', message: '网络请求失败' };
+            }
+        }
+
+        // ── Login ──
+        async function doLogin() {
+            const pwd = document.getElementById('pwd-input').value;
+            const result = await apiPost('login', { password: pwd });
+            if (result.status === 'ok') {
+                sessionPassword = pwd;
+                currentConfig = result.data || {};
                 document.getElementById('login-screen').classList.add('hidden');
                 document.getElementById('admin-panel').classList.remove('hidden');
-                loadConfig();
+                loadConfigUI();
             } else {
                 document.getElementById('login-err').style.display = 'block';
                 document.getElementById('pwd-input').value = '';
@@ -755,40 +793,75 @@
             }
         }
 
-        function savePwd() {
-            const v = document.getElementById('new-pwd').value.trim();
-            if (!v) return toast('请输入新密码', 'error');
-            sc('password', v);
-            toast('✅ 密码已更新');
+        // ── Save Password ──
+        async function savePwd() {
+            const newPwd = document.getElementById('new-pwd').value.trim();
+            if (!newPwd) return toast('请输入新密码', 'error');
+
+            const result = await apiPost('changepwd', {
+                current_password: sessionPassword,
+                new_password: newPwd
+            });
+
+            if (result.status === 'ok') {
+                sessionPassword = newPwd;
+                toast('✅ 密码已更新');
+                document.getElementById('new-pwd').value = '';
+            } else {
+                toast(result.message || '密码更新失败', 'error');
+            }
         }
 
-        // Map
+        // ── Map Provider ──
         function pickMap(p) {
             document.querySelectorAll('.radio-card').forEach(c => c.classList.remove('selected'));
             document.getElementById('rc-' + p).classList.add('selected');
             document.getElementById('apikey-field').style.display = p === 'google' ? 'block' : 'none';
             document.getElementById('osm-status').style.display = p === 'osm' ? 'block' : 'none';
-            sc('map_provider', p);
+            currentConfig.map_provider = p;
         }
 
-        function saveKey() {
+        async function saveKey() {
             const k = document.getElementById('api-key').value.trim();
             if (!k) return toast('请输入 API Key', 'error');
-            sc('google_maps_key', k);
-            sc('map_provider', 'google');
-            updateKeyUI();
-            toast('✅ API Key 已保存');
+            currentConfig.google_maps_key = k;
+            currentConfig.map_provider = 'google';
+
+            const result = await apiPost('save', {
+                password: sessionPassword,
+                data: {
+                    map_provider: 'google',
+                    google_maps_key: k
+                }
+            });
+
+            if (result.status === 'ok') {
+                updateKeyUI();
+                toast('✅ API Key 已保存');
+            } else {
+                toast(result.message || '保存失败', 'error');
+            }
         }
 
-        function clearKey() {
-            dc('google_maps_key');
+        async function clearKey() {
+            currentConfig.google_maps_key = '';
             document.getElementById('api-key').value = '';
-            updateKeyUI();
-            toast('API Key 已清除');
+
+            const result = await apiPost('save', {
+                password: sessionPassword,
+                data: { google_maps_key: '' }
+            });
+
+            if (result.status === 'ok') {
+                updateKeyUI();
+                toast('API Key 已清除');
+            } else {
+                toast(result.message || '清除失败', 'error');
+            }
         }
 
         function updateKeyUI() {
-            const k = gc('google_maps_key');
+            const k = currentConfig.google_maps_key;
             const el = document.getElementById('key-status');
             if (k) {
                 el.innerHTML = `<div class="status ok"><span class="status-dot"></span> 已配置: <code>${k.slice(0, 10)}...${k.slice(-4)}</code></div>`;
@@ -797,7 +870,7 @@
             }
         }
 
-        // FakerAPI Test
+        // ── FakerAPI Test ──
         async function testAPI() {
             const el = document.getElementById('api-status');
             el.innerHTML = '<div class="status info"><span class="status-dot"></span> 正在测试...</div>';
@@ -814,28 +887,45 @@
             }
         }
 
-        // Site
-        function saveSite() {
+        // ── Site Settings ──
+        async function saveSite() {
             const t = document.getElementById('site-title').value.trim();
             const f = document.getElementById('site-footer').value.trim();
-            if (t) sc('site_title', t);
-            if (f) sc('site_footer', f);
-            toast('✅ 网站设置已保存');
+
+            const data = {};
+            if (t) data.site_title = t;
+            if (f) data.site_footer = f;
+            // Also save current map provider
+            data.map_provider = currentConfig.map_provider || 'osm';
+
+            const result = await apiPost('save', {
+                password: sessionPassword,
+                data: data
+            });
+
+            if (result.status === 'ok') {
+                if (t) currentConfig.site_title = t;
+                if (f) currentConfig.site_footer = f;
+                toast('✅ 网站设置已保存');
+            } else {
+                toast(result.message || '保存失败', 'error');
+            }
         }
 
-        // Load
-        function loadConfig() {
-            const prov = gc('map_provider') || 'osm';
+        // ── Load config into UI ──
+        function loadConfigUI() {
+            const prov = currentConfig.map_provider || 'osm';
             pickMap(prov);
-            const k = gc('google_maps_key');
+            const k = currentConfig.google_maps_key;
             if (k) document.getElementById('api-key').value = k;
             updateKeyUI();
-            const t = gc('site_title');
-            const f = gc('site_footer');
+            const t = currentConfig.site_title;
+            const f = currentConfig.site_footer;
             if (t) document.getElementById('site-title').value = t;
             if (f) document.getElementById('site-footer').value = f;
         }
 
+        // ── Toast ──
         function toast(msg, type) {
             const t = document.getElementById('toast');
             t.textContent = msg;
@@ -843,7 +933,7 @@
             setTimeout(() => t.className = 'toast-admin', 2500);
         }
 
-        // Theme toggle
+        // ── Theme toggle (remains in localStorage — user preference) ──
         function initAdminTheme() {
             const theme = localStorage.getItem('idgen_theme') || 'light';
             document.body.classList.toggle('dark-mode', theme === 'dark');
