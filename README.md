@@ -56,7 +56,7 @@
 | 身份数据 | [FakerAPI](https://fakerapi.it/) |
 | 地图展示 | Google Maps Embed |
 
-> ⚡ **轻量级架构**：零依赖 Node.js 服务器，无需数据库。配置存储在服务端 `config.json` 文件中，后台修改后所有客户端即时生效。主题偏好存储在浏览器 `localStorage` 中。
+> ⚡ **轻量级架构**：零依赖 Node.js 服务器，无需数据库。配置存储在服务端 `config.json` 文件中（首次运行自动创建，不纳入版本控制），后台修改后所有客户端即时生效。主题偏好存储在浏览器 `localStorage` 中。
 
 ---
 
@@ -64,15 +64,18 @@
 
 ```
 identitygen/
-├── index.html        # 主页面 — 身份信息生成器前端
-├── admin.html        # 后台管理面板 — 密码保护
-├── server.js         # Node.js 服务器 — 静态文件服务 + 配置 API（零依赖）
-├── config.json       # 配置文件 — 存储密码、API Key、网站设置等
-├── style.css         # 全局样式 — 亮色/暗色主题
-├── app.js            # 主逻辑 — 生成、i18n、地图、粒子动画
-├── data.js           # 静态数据 — 美国/英国州、城市、街道、姓名等
-└── README.md         # 项目文档（本文件）
+├── index.html           # 主页面 — 身份信息生成器前端
+├── admin.html           # 后台管理面板 — 密码保护
+├── server.js            # Node.js 服务器 — 静态文件服务 + 配置 API（零依赖）
+├── config.example.json  # 配置文件模板 — 供参考，实际配置由 server.js 自动创建
+├── config.json          # （运行时自动生成，不纳入 Git）存储密码、API Key、网站设置等
+├── style.css            # 全局样式 — 亮色/暗色主题
+├── app.js               # 主逻辑 — 生成、i18n、地图、粒子动画
+├── data.js              # 静态数据 — 美国/英国州、城市、街道、姓名等
+└── README.md            # 项目文档（本文件）
 ```
+
+> 📌 `config.json` 不纳入版本控制（已加入 `.gitignore`），首次运行 `server.js` 时自动创建。这样可确保服务器上修改的密码和配置不会被 `git pull` 覆盖。
 
 ---
 
@@ -148,13 +151,12 @@ pm2 startup
 server.js         ← Node.js 服务器（静态文件 + 配置 API）
 index.html
 admin.html
-config.json       ← 配置文件（自动创建）
 style.css
 app.js
 data.js
 ```
 
-> 💡 如果不需要后台管理功能，也可以直接手动编辑 `config.json` 文件。
+> 💡 `config.json` 无需手动创建，首次启动 `server.js` 时自动生成默认配置。如需手动预配置，可参考 `config.example.json` 创建。
 
 ---
 
@@ -254,20 +256,20 @@ sudo certbot --nginx -d your-domain.com
 5. 选择以下文件上传：
    ```
    server.js
-   config.json
    index.html
    admin.html
    style.css
    app.js
    data.js
    ```
+   > 💡 `config.json` 无需上传，首次启动 Node.js 服务时会自动创建。
 6. 等待上传完成
 
 **方式 B：通过 SSH/SFTP 上传**
 
 ```bash
 # 使用 scp 命令
-scp server.js config.json index.html admin.html style.css app.js data.js root@你的服务器IP:/www/wwwroot/id.example.com/
+scp server.js index.html admin.html style.css app.js data.js root@你的服务器IP:/www/wwwroot/id.example.com/
 
 # 或使用 FileZilla 等 SFTP 工具连接上传
 ```
@@ -340,6 +342,7 @@ location / {
 | 样式/脚本未加载 | 检查 `style.css`、`app.js`、`data.js` 是否在同一目录 |
 | SSL 证书申请失败 | 确认域名已正确解析到服务器 IP，检查 80 端口是否开放 |
 | 后台无法登录 | 默认密码为 `admin`，确认 Node.js 服务正在运行 |
+| 修改密码后无法登录 | 确认 `config.json` 不被 Git 追踪（已在 `.gitignore` 中），避免 `git pull` 覆盖配置 |
 | 后台保存失败 | 检查 `config.json` 文件权限，确保 Node.js 进程有写入权限 |
 | 地图不显示 | 检查是否可以正常访问 Google Maps；如需 API Key，在后台设置中配置 |
 | Node.js 服务挂掉 | 使用 PM2 管理进程：`pm2 restart identitygen` |
@@ -379,10 +382,18 @@ location / {
 **A:** 需要 Node.js 环境。项目自带一个零依赖的 `server.js`，同时提供静态文件服务和配置管理 API。只需 `node server.js` 一条命令即可启动，无需 `npm install`。如无 Node.js 环境，也可直接手动编辑 `config.json` 文件配置。
 
 ### Q: 数据存储在哪里？
-**A:** 后台配置（密码、API Key、地图服务商、网站标题、页脚）存储在服务端的 `config.json` 文件中，管理员在后台修改后所有用户立即生效。主题偏好（亮色/暗色）作为用户个人设置仍存储在浏览器 `localStorage` 中。
+**A:** 后台配置（密码、API Key、地图服务商、网站标题、页脚）存储在服务端的 `config.json` 文件中（首次运行自动创建，不纳入版本控制），管理员在后台修改后所有用户立即生效。主题偏好（亮色/暗色）作为用户个人设置仍存储在浏览器 `localStorage` 中。
 
 ### Q: 默认管理密码是什么？
 **A:** 默认密码为 `admin`，首次登录后请立即修改。
+
+### Q: 修改密码后登录提示错误？
+**A:** 请确认 `config.json` 已加入 `.gitignore` 且不被 Git 追踪。如果 `config.json` 仍被 Git 管理，执行 `git pull` 更新代码时会覆盖配置文件，导致密码被重置。执行以下命令修复：
+```bash
+git rm --cached config.json
+echo "config.json" >> .gitignore
+git commit -m "fix: stop tracking config.json"
+```
 
 ### Q: 为什么有时候地址数据加载较慢？
 **A:** Nominatim API 有速率限制（1 请求/秒）。系统会最多尝试 10 次获取有效地址。如果所有尝试都失败，将使用本地随机数据。
