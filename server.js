@@ -6,7 +6,7 @@
  *   - Provides config API (read/write config.json)
  * 
  * Usage:
- *   node server.js              → starts on port 3000
+ *   node server.js              → starts on port 3002
  *   node server.js 8080         → starts on port 8080
  *   PORT=8080 node server.js    → starts on port 8080
  */
@@ -17,7 +17,7 @@ const path = require('path');
 const url = require('url');
 
 // ─── Configuration ───
-const PORT = process.argv[2] || process.env.PORT || 3000;
+const PORT = process.argv[2] || process.env.PORT || 3002;
 const ROOT = __dirname;
 const CONFIG_FILE = path.join(ROOT, 'config.json');
 
