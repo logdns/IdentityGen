@@ -621,7 +621,7 @@
             <input type="password" class="input-field" id="pwd-input" placeholder="输入密码"
                 onkeydown="if(event.key==='Enter')doLogin()">
             <button class="btn-primary" onclick="doLogin()">进入后台</button>
-            <div class="login-error" id="login-err">❌ 密码错误，请重试</div>
+            <div class="login-error" id="login-err"></div>
         </div>
     </div>
 
@@ -779,6 +779,9 @@
         // ── Login ──
         async function doLogin() {
             const pwd = document.getElementById('pwd-input').value;
+            if (!pwd) return;
+            const errEl = document.getElementById('login-err');
+            errEl.style.display = 'none';
             const result = await apiPost('login', { password: pwd });
             if (result.status === 'ok') {
                 sessionPassword = pwd;
@@ -787,7 +790,8 @@
                 document.getElementById('admin-panel').classList.remove('hidden');
                 loadConfigUI();
             } else {
-                document.getElementById('login-err').style.display = 'block';
+                errEl.textContent = '❌ ' + (result.message || '登录失败，请重试');
+                errEl.style.display = 'block';
                 document.getElementById('pwd-input').value = '';
                 document.getElementById('pwd-input').focus();
             }
