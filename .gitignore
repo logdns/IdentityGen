@@ -11,5 +11,8 @@ Thumbs.db
 # Dependencies
 node_modules/
 
+# Runtime config (contains password, generated on first run)
+config.json
+
 # Misc
 *.log
