@@ -9,6 +9,7 @@ const LANG_EXPLICIT_KEY = 'idgen_lang_explicit';
 let currentLang = 'en';
 let currentIdentity = {};
 let currentTheme = localStorage.getItem('idgen_theme') || 'light';
+const AD_STORAGE_PREFIX = 'identitygen-ad:v1:';
 
 const $ = id => document.getElementById(id);
 const pick = arr => arr[Math.floor(Math.random() * arr.length)];
@@ -16,6 +17,23 @@ const randInt = (min, max) => Math.floor(Math.random() * (max - min + 1)) + min;
 
 // Server-side config (loaded from API only)
 let serverConfig = {};
+
+function decodeAdHtml(value) {
+    const raw = String(value || '');
+    if (!raw.startsWith(AD_STORAGE_PREFIX)) return raw;
+    const encoded = raw.slice(AD_STORAGE_PREFIX.length);
+    try {
+        const binary = atob(encoded);
+        const bytes = Uint8Array.from(binary, c => c.charCodeAt(0));
+        return new TextDecoder().decode(bytes);
+    } catch (e) {
+        try {
+            return decodeURIComponent(escape(atob(encoded)));
+        } catch (fallbackError) {
+            return '';
+        }
+    }
+}
 
 async function loadServerConfig() {
     // Try API endpoints in order: /api (Node.js) → /api.php (PHP)
@@ -274,14 +292,15 @@ function renderAds() {
         const el = $(`ad-${slot}`);
         if (!el) return;
         const cfg = ads[slot] || {};
-        if (cfg.enabled && cfg.html) {
+        const adHtml = decodeAdHtml(cfg.html).trim();
+        if (cfg.enabled && adHtml) {
             el.textContent = '';
             const frame = document.createElement('iframe');
             frame.className = 'ad-frame';
             frame.title = `Advertisement ${slot}`;
             frame.loading = 'lazy';
-            frame.referrerPolicy = 'no-referrer';
-            frame.setAttribute('sandbox', 'allow-scripts allow-popups allow-popups-to-escape-sandbox allow-forms');
+            frame.referrerPolicy = 'strict-origin-when-cross-origin';
+            frame.setAttribute('sandbox', 'allow-scripts allow-same-origin allow-popups allow-popups-to-escape-sandbox allow-forms');
             frame.srcdoc = `<!doctype html>
 <html>
 <head>
@@ -294,7 +313,7 @@ img,iframe,video,canvas{max-width:100%;}
 a{color:#006fee;text-decoration:none;font-weight:700;}
 </style>
 </head>
-<body>${cfg.html}</body>
+<body>${adHtml}</body>
 </html>`;
             el.appendChild(frame);
             el.hidden = false;

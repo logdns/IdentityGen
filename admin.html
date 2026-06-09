@@ -1001,7 +1001,7 @@
         <div class="section-card">
             <div class="section-header"><span class="section-icon">📣</span><span class="section-title">广告位管理</span>
             </div>
-            <p class="section-desc">预留前台顶部、信息区下方、地图下方三个广告位。广告代码会原样保存，并在前台 sandbox iframe 中隔离运行。</p>
+            <p class="section-desc">预留前台顶部、信息区下方、地图下方三个广告位。广告代码会兼容保存，并在前台 sandbox iframe 中隔离运行。</p>
             <div class="settings-grid three">
                 <div class="setting-panel">
                     <div class="setting-panel-head">
@@ -1014,8 +1014,7 @@
                             <span></span>
                         </label>
                     </div>
-                    <textarea class="field-input textarea" id="ad-top-html"
-                        placeholder="例如：&lt;a href='https://example.com' target='_blank'&gt;Sponsored Link&lt;/a&gt;"></textarea>
+                    <textarea class="field-input textarea mono" id="ad-top-html" placeholder="广告 HTML / JS 代码"></textarea>
                 </div>
                 <div class="setting-panel">
                     <div class="setting-panel-head">
@@ -1135,6 +1134,34 @@
         let sessionPassword = '';
         let sessionToken = '';
         let currentConfig = {};
+        const AD_STORAGE_PREFIX = 'identitygen-ad:v1:';
+
+        function encodeAdHtml(value) {
+            const raw = String(value || '');
+            if (!raw.trim()) return '';
+            if (raw.startsWith(AD_STORAGE_PREFIX)) return raw;
+            const bytes = new TextEncoder().encode(raw);
+            let binary = '';
+            bytes.forEach(byte => { binary += String.fromCharCode(byte); });
+            return AD_STORAGE_PREFIX + btoa(binary);
+        }
+
+        function decodeAdHtml(value) {
+            const raw = String(value || '');
+            if (!raw.startsWith(AD_STORAGE_PREFIX)) return raw;
+            const encoded = raw.slice(AD_STORAGE_PREFIX.length);
+            try {
+                const binary = atob(encoded);
+                const bytes = Uint8Array.from(binary, c => c.charCodeAt(0));
+                return new TextDecoder().decode(bytes);
+            } catch (e) {
+                try {
+                    return decodeURIComponent(escape(atob(encoded)));
+                } catch (fallbackError) {
+                    return '';
+                }
+            }
+        }
 
         // ── API helpers ──
         // Auto-detect working API endpoint (Node.js /api or PHP /api.php)
@@ -1388,19 +1415,31 @@
             ['top', 'inline', 'footer'].forEach(slot => {
                 ads[slot] = {
                     enabled: document.getElementById(`ad-${slot}-enabled`).checked,
-                    html: document.getElementById(`ad-${slot}-html`).value
+                    html: encodeAdHtml(document.getElementById(`ad-${slot}-html`).value)
                 };
             });
             return ads;
         }
 
         async function saveAds() {
+            const submittedAds = readAdsForm();
             const result = await apiPost('save', authBody({
-                data: { ads: readAdsForm() }
+                data: { ads: submittedAds }
             }));
 
             if (result.status === 'ok') {
                 currentConfig = result.data || currentConfig;
+                const savedAds = currentConfig.ads || {};
+                const lostSlots = ['top', 'inline', 'footer'].filter(slot => {
+                    const submitted = submittedAds[slot] || {};
+                    const saved = savedAds[slot] || {};
+                    return submitted.enabled && submitted.html && !saved.html;
+                });
+                if (lostSlots.length) {
+                    toast('广告代码未被后端保存，请重启 server.js 后再保存', 'error');
+                    return;
+                }
+                loadConfigUI();
                 toast('✅ 广告位已保存');
             } else {
                 toast(result.message || '保存失败', 'error');
@@ -1628,7 +1667,7 @@
             ['top', 'inline', 'footer'].forEach(slot => {
                 const cfg = ads[slot] || {};
                 document.getElementById(`ad-${slot}-enabled`).checked = Boolean(cfg.enabled);
-                document.getElementById(`ad-${slot}-html`).value = cfg.html || '';
+                document.getElementById(`ad-${slot}-html`).value = decodeAdHtml(cfg.html);
             });
 
             const donation = currentConfig.donation || {};
