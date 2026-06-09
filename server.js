@@ -212,6 +212,32 @@ async function getRemoteFileVersion(ref) {
     return formatVersion(version);
 }
 
+function parseGitStatus(porcelain) {
+    return cleanOutput(porcelain)
+        .split('\n')
+        .map(line => ({
+            raw: line,
+            index: line.slice(0, 1),
+            worktree: line.slice(1, 2),
+            path: line.slice(3)
+        }))
+        .filter(item => item.raw && item.path);
+}
+
+function formatDirtyFiles(files) {
+    return files
+        .slice(0, 8)
+        .map(file => `${file.index}${file.worktree} ${file.path}`.trim())
+        .join('，');
+}
+
+function isOnlyUnstagedVersionChange(files) {
+    return files.length === 1
+        && files[0].path === 'VERSION'
+        && files[0].index === ' '
+        && files[0].worktree === 'M';
+}
+
 async function getVersionInfo(options = {}) {
     const localVersion = readLocalVersion();
     const insideWorkTree = await tryGit(['rev-parse', '--is-inside-work-tree']);
@@ -358,13 +384,28 @@ async function updateVersion() {
         };
     }
 
-    const dirty = await tryGit(['status', '--porcelain']);
-    if (dirty) {
+    const dirty = parseGitStatus(await tryGit(['status', '--porcelain']));
+    if (isOnlyUnstagedVersionChange(dirty)) {
+        try {
+            await runGit(['restore', '--', 'VERSION']);
+        } catch (e) {
+            return {
+                ok: false,
+                statusCode: 409,
+                message: `检测到 VERSION 文件被本地修改，自动恢复失败：${e.message}`,
+                data: before
+            };
+        }
+    } else if (dirty.length) {
+        const dirtyFiles = formatDirtyFiles(dirty);
         return {
             ok: false,
             statusCode: 409,
-            message: '检测到本地代码有未提交修改，已停止自动更新，避免覆盖本地改动。',
-            data: before
+            message: `检测到本地代码有未提交修改，已停止自动更新：${dirtyFiles}`,
+            data: {
+                ...before,
+                dirty_files: dirty
+            }
         };
     }
 

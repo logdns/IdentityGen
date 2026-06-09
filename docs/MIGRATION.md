@@ -116,6 +116,33 @@ pm2 restart identitygen
 
 从 `v1.1.1` 开始，即使不是 Git 部署，后台也会显示本地 `VERSION` 版本号，并会尝试读取 GitHub 上的最新 `VERSION`。但“更新版本”仍然需要 Git 仓库，文件上传部署只能按上面的步骤手动升级。
 
+### 后台提示本地代码有未提交修改
+
+后台更新前会检查 Git 工作区，避免覆盖服务器上的本地改动。常见原因是手动编辑过代码文件，或只改了 `VERSION` 文件导致当前版本号和 Git 提交不一致。
+
+先查看具体改动：
+
+```bash
+cd /www/wwwroot/identitygen
+git status --short
+```
+
+如果只看到：
+
+```text
+ M VERSION
+```
+
+说明只是版本号文件被本地改动，可以恢复后再更新：
+
+```bash
+git restore -- VERSION
+git pull --ff-only origin main
+pm2 restart identitygen
+```
+
+从 `v1.1.2` 开始，后台更新会自动恢复这种“仅 VERSION 被修改”的情况。其它文件有本地修改时，后台会显示具体文件名，需要先手动确认是否保留。
+
 ### 发布版本规范
 
 新版本发布时需要同步推送 `main` 分支和版本 tag：
