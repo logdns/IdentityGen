@@ -759,6 +759,11 @@ body.uk-mode.dark-mode .card-highlight {
 .ad-slot {
   margin: 24px 0;
   padding: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: min(100%, var(--ad-width, 100%));
+  min-height: var(--ad-height, 0);
   border-radius: var(--radius-sm);
   border: 1px solid var(--border);
   background: var(--bg-card);
@@ -771,12 +776,10 @@ body.uk-mode.dark-mode .card-highlight {
   display: none;
 }
 
-.ad-frame {
-  display: block;
-  width: 100%;
-  min-height: 120px;
-  border: 0;
-  background: transparent;
+.ad-slot iframe,
+.ad-slot img,
+.ad-slot ins {
+  max-width: 100%;
 }
 
 /* ─── Map ─── */

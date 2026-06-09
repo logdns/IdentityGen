@@ -35,6 +35,33 @@ function decodeAdHtml(value) {
     }
 }
 
+function getAdDimensions(html) {
+    const text = String(html || '');
+    const width = text.match(/['"]width['"]\s*:\s*(\d+)/i);
+    const height = text.match(/['"]height['"]\s*:\s*(\d+)/i);
+    return {
+        width: width ? Math.min(Math.max(parseInt(width[1], 10), 1), 1200) : 0,
+        height: height ? Math.min(Math.max(parseInt(height[1], 10), 1), 600) : 0
+    };
+}
+
+function insertAdNode(container, node) {
+    if (node.nodeName === 'SCRIPT') {
+        const script = document.createElement('script');
+        Array.from(node.attributes).forEach(attr => script.setAttribute(attr.name, attr.value));
+        script.textContent = node.textContent || '';
+        container.appendChild(script);
+        return;
+    }
+    container.appendChild(document.importNode(node, true));
+}
+
+function renderAdHtml(container, html) {
+    const tpl = document.createElement('template');
+    tpl.innerHTML = html;
+    Array.from(tpl.content.childNodes).forEach(node => insertAdNode(container, node));
+}
+
 async function loadServerConfig() {
     // Try API endpoints in order: /api (Node.js) → /api.php (PHP)
     const endpoints = ['api', 'api.php'];
@@ -294,31 +321,16 @@ function renderAds() {
         const cfg = ads[slot] || {};
         const adHtml = decodeAdHtml(cfg.html).trim();
         if (cfg.enabled && adHtml) {
-            el.textContent = '';
-            const frame = document.createElement('iframe');
-            frame.className = 'ad-frame';
-            frame.title = `Advertisement ${slot}`;
-            frame.loading = 'lazy';
-            frame.referrerPolicy = 'strict-origin-when-cross-origin';
-            frame.setAttribute('sandbox', 'allow-scripts allow-same-origin allow-popups allow-popups-to-escape-sandbox allow-forms');
-            frame.srcdoc = `<!doctype html>
-<html>
-<head>
-<meta charset="utf-8">
-<meta name="viewport" content="width=device-width,initial-scale=1">
-<base target="_blank">
-<style>
-html,body{margin:0;padding:0;background:transparent;color:#111827;font-family:Inter,system-ui,sans-serif;overflow:hidden;}
-img,iframe,video,canvas{max-width:100%;}
-a{color:#006fee;text-decoration:none;font-weight:700;}
-</style>
-</head>
-<body>${adHtml}</body>
-</html>`;
-            el.appendChild(frame);
+            el.innerHTML = '';
+            const dimensions = getAdDimensions(adHtml);
+            el.style.setProperty('--ad-width', dimensions.width ? `${dimensions.width}px` : '100%');
+            el.style.setProperty('--ad-height', dimensions.height ? `${dimensions.height}px` : 'auto');
+            renderAdHtml(el, adHtml);
             el.hidden = false;
         } else {
-            el.textContent = '';
+            el.innerHTML = '';
+            el.style.removeProperty('--ad-width');
+            el.style.removeProperty('--ad-height');
             el.hidden = true;
         }
     });
