@@ -126,7 +126,7 @@ function normalizeAdSlot(slot) {
     const input = slot && typeof slot === 'object' ? slot : {};
     return {
         enabled: toBoolean(input.enabled),
-        html: stripUnsafeHtml(input.html || '', 5000)
+        html: limitString(input.html || '', 12000)
     };
 }
 

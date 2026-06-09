@@ -275,10 +275,31 @@ function renderAds() {
         if (!el) return;
         const cfg = ads[slot] || {};
         if (cfg.enabled && cfg.html) {
-            el.innerHTML = sanitizeHTML(cfg.html);
+            el.textContent = '';
+            const frame = document.createElement('iframe');
+            frame.className = 'ad-frame';
+            frame.title = `Advertisement ${slot}`;
+            frame.loading = 'lazy';
+            frame.referrerPolicy = 'no-referrer';
+            frame.setAttribute('sandbox', 'allow-scripts allow-popups allow-popups-to-escape-sandbox allow-forms');
+            frame.srcdoc = `<!doctype html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<base target="_blank">
+<style>
+html,body{margin:0;padding:0;background:transparent;color:#111827;font-family:Inter,system-ui,sans-serif;overflow:hidden;}
+img,iframe,video,canvas{max-width:100%;}
+a{color:#006fee;text-decoration:none;font-weight:700;}
+</style>
+</head>
+<body>${cfg.html}</body>
+</html>`;
+            el.appendChild(frame);
             el.hidden = false;
         } else {
-            el.innerHTML = '';
+            el.textContent = '';
             el.hidden = true;
         }
     });

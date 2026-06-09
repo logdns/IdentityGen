@@ -758,26 +758,25 @@ body.uk-mode.dark-mode .card-highlight {
 /* ─── Ads ─── */
 .ad-slot {
   margin: 24px 0;
-  padding: 14px;
+  padding: 0;
   border-radius: var(--radius-sm);
-  border: 1px dashed var(--border);
+  border: 1px solid var(--border);
   background: var(--bg-card);
   color: var(--text-dim);
   overflow-wrap: anywhere;
+  overflow: hidden;
 }
 
 .ad-slot:empty {
   display: none;
 }
 
-.ad-slot img {
-  max-width: 100%;
-  height: auto;
-  border-radius: var(--radius-xs);
-}
-
-.ad-slot a {
-  font-weight: 700;
+.ad-frame {
+  display: block;
+  width: 100%;
+  min-height: 120px;
+  border: 0;
+  background: transparent;
 }
 
 /* ─── Map ─── */
