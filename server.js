@@ -109,6 +109,12 @@ function stripUnsafeHtml(value, maxLength = 5000) {
         .replace(/\s(href|src)\s*=\s*javascript:[^\s>]*/gi, '');
 }
 
+function normalizeSiteFooter(value) {
+    const footer = stripUnsafeHtml(value || '', 2000);
+    if (/github\.com\/logdns\/IdentityGen/i.test(footer)) return '© 2026 IdentityGen.Xyz';
+    return footer;
+}
+
 function sanitizePublicUrl(value) {
     const raw = limitString(value, 500).trim();
     if (!raw) return '';
@@ -168,7 +174,7 @@ function normalizeConfig(config) {
         map_provider: input.map_provider === 'google' ? 'google' : 'osm',
         google_maps_key: limitString(input.google_maps_key, 300).trim(),
         site_title: limitString(input.site_title, 80).trim(),
-        site_footer: stripUnsafeHtml(input.site_footer || '', 2000),
+        site_footer: normalizeSiteFooter(input.site_footer),
         default_language: LANGS.has(input.default_language) ? input.default_language : DEFAULT_CONFIG.default_language,
         ads: normalizeAds(input.ads),
         donation: normalizeDonation(input.donation)

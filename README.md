@@ -126,7 +126,7 @@ PORT=8080 node server.js
 | 地图服务商 | 基础嵌入模式 / Google Maps API | 基础嵌入模式 |
 | Google Maps API Key | 使用 Google Maps Embed API 时需要 | 无（使用基础嵌入）|
 | 网站标题 | 自定义 Logo 文字 | `IdentityGen` |
-| 页脚文字 | 自定义页脚内容（支持 HTML） | `© 2026 IdentityGen` |
+| 页脚文字 | 自定义页脚内容（支持 HTML） | `© 2026 IdentityGen.Xyz` |
 | 默认语言 | 前台默认显示语言 | English |
 | 广告位 | 顶部、信息区下方、地图下方广告代码 | 关闭 |
 | 加密币捐赠 | 前台底部捐赠地址列表 | 关闭 |
@@ -471,6 +471,5 @@ git commit -m "fix: stop tracking config.json"
 ---
 
 <p align="center">
-  ⚡ <strong>IdentityGen</strong> — Made with ❤️<br>
-  <a href="https://github.com/logdns/IdentityGen">github.com/logdns/IdentityGen</a>
+  ⚡ <strong>IdentityGen.Xyz</strong>
 </p>

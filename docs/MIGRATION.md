@@ -187,6 +187,16 @@ pm2 restart identitygen
 Ctrl + F5 / Cmd + Shift + R
 ```
 
+## 迁移到 v1.2.6
+
+v1.2.6 更新前台默认页脚品牌。
+
+### 变更内容
+
+- 前台默认页脚移除 GitHub 版权链接，改为 `© 2026 IdentityGen.Xyz`。
+- 多语言默认页脚同步为 `IdentityGen.Xyz`。
+- 如果旧配置中保存的是默认 GitHub 页脚，服务端会自动迁移为 `© 2026 IdentityGen.Xyz`。
+
 ## 迁移到 v1.2.5
 
 v1.2.5 修复部分广告脚本依赖 `document.write` 或容器尺寸检测时仍显示空白的问题。
