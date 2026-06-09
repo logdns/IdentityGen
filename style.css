@@ -12,18 +12,18 @@
 
 /* ─── Light Theme (Default) ─── */
 :root {
-  --bg: #f5f7fb;
-  --bg-card: rgba(255, 255, 255, 0.85);
-  --bg-card-hover: rgba(255, 255, 255, 0.95);
-  --border: rgba(0, 0, 0, 0.08);
-  --border-hover: rgba(0, 0, 0, 0.15);
-  --text: #1a1d2e;
-  --text-dim: #5b6078;
-  --text-muted: #9ca3b8;
-  --accent: #6366f1;
-  --accent-2: #4f46e5;
-  --accent-glow: rgba(99, 102, 241, 0.18);
-  --accent-soft: rgba(99, 102, 241, 0.08);
+  --bg: #f7f8fa;
+  --bg-card: rgba(255, 255, 255, 0.92);
+  --bg-card-hover: #fff;
+  --border: #e5e7eb;
+  --border-hover: #d4d4d8;
+  --text: #111827;
+  --text-dim: #4b5563;
+  --text-muted: #9ca3af;
+  --accent: #006fee;
+  --accent-2: #005bc4;
+  --accent-glow: rgba(0, 111, 238, 0.18);
+  --accent-soft: rgba(0, 111, 238, 0.1);
   --uk-accent: #e11d48;
   --uk-accent-2: #be123c;
   --uk-glow: rgba(225, 29, 72, 0.18);
@@ -31,31 +31,31 @@
   --green: #059669;
   --green-glow: rgba(5, 150, 105, 0.2);
   --red: #dc2626;
-  --radius: 16px;
-  --radius-sm: 10px;
+  --radius: 14px;
+  --radius-sm: 12px;
   --radius-xs: 8px;
   --font: 'Inter', system-ui, -apple-system, sans-serif;
   --mono: 'JetBrains Mono', 'Fira Code', monospace;
   --header-h: 64px;
   --transition: 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-  --header-bg: rgba(255, 255, 255, 0.72);
-  --header-border: rgba(0, 0, 0, 0.06);
-  --select-bg: rgba(99, 102, 241, 0.04);
-  --select-border: rgba(99, 102, 241, 0.18);
+  --header-bg: rgba(255, 255, 255, 0.86);
+  --header-border: #edf0f5;
+  --select-bg: #f4f4f5;
+  --select-border: #d4d4d8;
   --select-option-bg: #fff;
   --card-highlight-bg: linear-gradient(135deg, rgba(99, 102, 241, 0.05), rgba(139, 92, 246, 0.03));
   --card-highlight-border: rgba(99, 102, 241, 0.12);
-  --card-shadow: 0 4px 24px rgba(0, 0, 0, 0.06);
-  --particle-color: 99, 102, 241;
-  --particle-opacity: 0.25;
+  --card-shadow: 0 10px 30px rgba(17, 24, 39, 0.06);
+  --particle-color: 0, 111, 238;
+  --particle-opacity: 0.14;
   --logo-gradient: linear-gradient(135deg, var(--accent-2) 20%, var(--accent));
-  --hero-h1-gradient: linear-gradient(135deg, #1a1d2e 0%, #4338ca 40%, var(--accent) 100%);
-  --lang-border: rgba(99, 102, 241, 0.25);
-  --lang-bg: rgba(99, 102, 241, 0.06);
-  --lang-color: #4f46e5;
-  --lang-hover-bg: rgba(99, 102, 241, 0.12);
-  --lang-hover-border: rgba(99, 102, 241, 0.4);
-  --lang-hover-color: #3730a3;
+  --hero-h1-gradient: linear-gradient(135deg, #111827 0%, #005bc4 52%, var(--accent) 100%);
+  --lang-border: #d4d4d8;
+  --lang-bg: #f4f4f5;
+  --lang-color: #111827;
+  --lang-hover-bg: #eef6ff;
+  --lang-hover-border: rgba(0, 111, 238, 0.35);
+  --lang-hover-color: #005bc4;
 }
 
 /* ─── Dark Theme ─── */
@@ -269,9 +269,10 @@ header {
 .country-switcher {
   display: flex;
   gap: 4px;
-  background: var(--bg-card);
+  background: #f4f4f5;
   border-radius: var(--radius-sm);
-  padding: 3px;
+  padding: 4px;
+  border: 1px solid var(--border);
 }
 
 .country-btn {
@@ -303,7 +304,7 @@ body.dark-mode .country-btn:hover {
 .country-btn.active {
   background: var(--accent);
   color: #fff;
-  box-shadow: 0 2px 12px var(--accent-glow), inset 0 1px 0 rgba(255, 255, 255, 0.15);
+  box-shadow: 0 6px 16px var(--accent-glow);
 }
 
 .country-flag {
@@ -319,7 +320,7 @@ body.dark-mode .country-btn:hover {
   height: 36px;
   border-radius: var(--radius-xs);
   border: 1px solid var(--border);
-  background: var(--bg-card);
+  background: #f4f4f5;
   font-size: 1.1em;
   cursor: pointer;
   transition: all var(--transition);
@@ -384,7 +385,7 @@ body.dark-mode .country-btn:hover {
   height: 36px;
   border-radius: var(--radius-xs);
   border: 1px solid var(--border);
-  background: var(--bg-card);
+  background: #f4f4f5;
   color: var(--text-dim);
   transition: all var(--transition);
 }
@@ -400,7 +401,7 @@ body.dark-mode .country-btn:hover {
 main {
   position: relative;
   z-index: 1;
-  max-width: 880px;
+  max-width: 920px;
   margin: 0 auto;
   padding: 48px 24px 72px;
 }
@@ -408,13 +409,13 @@ main {
 /* ─── Hero ─── */
 .hero {
   text-align: center;
-  margin-bottom: 44px;
+  margin-bottom: 36px;
 }
 
 .hero-badge {
   display: inline-block;
   padding: 6px 18px;
-  border-radius: 20px;
+  border-radius: 999px;
   background: var(--accent-soft);
   color: var(--accent);
   font-size: 0.78em;
@@ -426,9 +427,9 @@ main {
 
 .hero h1 {
   font-size: clamp(2em, 5vw, 3.2em);
-  font-weight: 900;
+  font-weight: 800;
   line-height: 1.08;
-  letter-spacing: -0.03em;
+  letter-spacing: 0;
   background: var(--hero-h1-gradient);
   -webkit-background-clip: text;
   background-clip: text;
@@ -454,7 +455,7 @@ main {
   background: var(--bg-card);
   border: 1px solid var(--border);
   border-radius: var(--radius);
-  padding: 20px 24px;
+  padding: 18px;
   box-shadow: var(--card-shadow);
   transition: background 0.4s ease, border-color 0.4s ease;
 }
@@ -484,7 +485,7 @@ main {
   -webkit-appearance: none;
   width: 100%;
   padding: 13px 42px 13px 16px;
-  border-radius: var(--radius-sm);
+  border-radius: 10px;
   border: 1px solid var(--select-border);
   background: var(--select-bg);
   color: var(--text);
@@ -526,7 +527,7 @@ main {
   justify-content: center;
   gap: 10px;
   padding: 13px 30px;
-  border-radius: var(--radius-sm);
+  border-radius: 10px;
   border: none;
   background: linear-gradient(135deg, var(--accent-2), var(--accent));
   color: #fff;
@@ -535,7 +536,7 @@ main {
   font-weight: 700;
   cursor: pointer;
   transition: all var(--transition);
-  box-shadow: 0 4px 24px var(--accent-glow), inset 0 1px 0 rgba(255, 255, 255, 0.15);
+  box-shadow: 0 8px 20px var(--accent-glow);
   white-space: nowrap;
   align-self: flex-end;
 }
@@ -603,7 +604,7 @@ main {
   position: relative;
   overflow: hidden;
   transition: all var(--transition);
-  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.04);
+  box-shadow: var(--card-shadow);
 }
 
 body.dark-mode .info-card {
@@ -623,7 +624,7 @@ body.dark-mode .info-card {
 .info-card:hover {
   border-color: var(--border-hover);
   transform: translateY(-2px);
-  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
+  box-shadow: 0 14px 36px rgba(17, 24, 39, 0.1);
 }
 
 body.dark-mode .info-card:hover {

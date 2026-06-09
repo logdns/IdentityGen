@@ -3,7 +3,10 @@
 // ═══════════════════════════════════════════════
 
 let currentCountry = 'us';
-let currentLang = localStorage.getItem('idgen_lang') || 'en';
+const LANG_STORAGE_KEY = 'idgen_lang';
+const LANG_EXPLICIT_KEY = 'idgen_lang_explicit';
+
+let currentLang = 'en';
 let currentIdentity = {};
 let currentTheme = localStorage.getItem('idgen_theme') || 'light';
 
@@ -258,7 +261,8 @@ function applyI18n() {
 
 function setLang(lang) {
     currentLang = normalizeLang(lang);
-    localStorage.setItem('idgen_lang', currentLang);
+    localStorage.setItem(LANG_STORAGE_KEY, currentLang);
+    localStorage.setItem(LANG_EXPLICIT_KEY, '1');
     applyI18n();
     populateSelect();
     if (currentIdentity.name) renderIdentity();
@@ -358,10 +362,10 @@ document.addEventListener('DOMContentLoaded', async () => {
     setupCountryNav();
     // Load server config before applying i18n and generating identity
     await loadServerConfig();
-    currentLang = normalizeLang(currentLang);
-    if (!localStorage.getItem('idgen_lang')) {
-        currentLang = normalizeLang(serverConfig.default_language);
-    }
+    const savedLang = localStorage.getItem(LANG_EXPLICIT_KEY) === '1'
+        ? localStorage.getItem(LANG_STORAGE_KEY)
+        : '';
+    currentLang = normalizeLang(savedLang || serverConfig.default_language || 'en');
     applyI18n();
     populateSelect();
     generateIdentity();

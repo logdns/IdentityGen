@@ -399,7 +399,13 @@ async function getVersionInfo(options = {}) {
                 short: '',
                 date: '',
                 subject: 'GitHub VERSION 文件'
-            } : null,
+            } : {
+                version: latestVersion,
+                hash: '',
+                short: '',
+                date: '',
+                subject: ''
+            },
             message: fetch_error
                 ? `当前目录不是 Git 仓库，且检查 GitHub VERSION 失败：${fetch_error}`
                 : localVersion
@@ -414,9 +420,10 @@ async function getVersionInfo(options = {}) {
     const remoteName = upstream ? upstream.split('/')[0] : 'origin';
     let fetch_error = '';
 
+    let fetch_output = '';
     if (options.fetch && remoteName) {
         try {
-            await runGit(['fetch', '--quiet', '--prune', remoteName], { timeout: 90000 });
+            fetch_output = await runGit(['fetch', '--prune', remoteName], { timeout: 90000 });
         } catch (e) {
             fetch_error = e.message;
         }
@@ -462,6 +469,7 @@ async function getVersionInfo(options = {}) {
         ahead,
         behind,
         fetch_error,
+        fetch_output,
         current_version: currentVersion,
         latest_version: latestVersion,
         version_update_available: isNewerVersion(latestVersion, currentVersion),
@@ -756,7 +764,9 @@ function serveStatic(req, res, filePath) {
 
         res.writeHead(200, {
             'Content-Type': contentType,
-            'Cache-Control': ext === '.html' ? 'no-cache' : 'public, max-age=86400'
+            'Cache-Control': ext === '.html' || ext === '.js' || ext === '.css'
+                ? 'no-cache'
+                : 'public, max-age=86400'
         });
         fs.createReadStream(filePath).pipe(res);
     });

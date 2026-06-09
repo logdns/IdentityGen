@@ -24,18 +24,18 @@
         }
 
         :root {
-            --bg: #f5f7fb;
-            --surface: rgba(255, 255, 255, 0.85);
-            --surface-2: rgba(0, 0, 0, 0.04);
-            --border: rgba(0, 0, 0, 0.08);
-            --border-hover: rgba(0, 0, 0, 0.15);
-            --text: #1a1d2e;
-            --text-dim: #5b6078;
-            --text-muted: #9ca3b8;
-            --accent: #6366f1;
-            --accent-2: #4f46e5;
-            --accent-glow: rgba(99, 102, 241, 0.18);
-            --accent-soft: rgba(99, 102, 241, 0.08);
+            --bg: #f7f8fa;
+            --surface: rgba(255, 255, 255, 0.92);
+            --surface-2: #f4f4f5;
+            --border: #e5e7eb;
+            --border-hover: #d4d4d8;
+            --text: #111827;
+            --text-dim: #4b5563;
+            --text-muted: #9ca3af;
+            --accent: #006fee;
+            --accent-2: #005bc4;
+            --accent-glow: rgba(0, 111, 238, 0.18);
+            --accent-soft: rgba(0, 111, 238, 0.1);
             --green: #059669;
             --green-soft: rgba(5, 150, 105, 0.08);
             --green-border: rgba(5, 150, 105, 0.2);
@@ -44,8 +44,8 @@
             --red-border: rgba(220, 38, 38, 0.2);
             --amber: #d97706;
             --amber-soft: rgba(217, 119, 6, 0.08);
-            --radius: 16px;
-            --radius-sm: 10px;
+            --radius: 14px;
+            --radius-sm: 12px;
             --radius-xs: 8px;
             --font: 'Inter', system-ui, sans-serif;
             --mono: 'JetBrains Mono', monospace;
@@ -159,7 +159,7 @@
         .login-card {
             background: var(--surface);
             border: 1px solid var(--border);
-            border-radius: 20px;
+            border-radius: var(--radius);
             padding: 48px 40px;
             width: 90%;
             max-width: 400px;
@@ -167,7 +167,7 @@
             position: relative;
             z-index: 1;
             backdrop-filter: blur(20px);
-            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.5);
+            box-shadow: 0 20px 60px rgba(17, 24, 39, 0.12);
         }
 
         .login-icon {
@@ -221,7 +221,7 @@
             font-weight: 700;
             cursor: pointer;
             transition: all var(--transition);
-            background: linear-gradient(135deg, var(--accent-2), var(--accent));
+            background: var(--accent);
             color: #fff;
             box-shadow: 0 4px 20px var(--accent-glow);
         }
@@ -242,7 +242,7 @@
         .admin-wrap {
             position: relative;
             z-index: 1;
-            max-width: 760px;
+            max-width: 960px;
             margin: 0 auto;
             padding: 36px 24px 60px;
         }
@@ -262,8 +262,8 @@
 
         .admin-topbar h1 {
             font-size: 1.6em;
-            font-weight: 900;
-            background: linear-gradient(135deg, #fff 20%, var(--accent));
+            font-weight: 800;
+            background: linear-gradient(135deg, var(--text) 20%, var(--accent));
             -webkit-background-clip: text;
             background-clip: text;
             -webkit-text-fill-color: transparent;
@@ -302,6 +302,7 @@
             position: relative;
             overflow: hidden;
             transition: border-color var(--transition);
+            box-shadow: 0 10px 30px rgba(17, 24, 39, 0.06);
         }
 
         .section-card:hover {
@@ -442,7 +443,7 @@
             padding: 10px 22px;
             border-radius: var(--radius-xs);
             border: none;
-            background: linear-gradient(135deg, var(--green), #10b981);
+            background: var(--accent);
             color: #fff;
             font-family: var(--font);
             font-size: 0.85em;
@@ -450,12 +451,19 @@
             cursor: pointer;
             transition: all var(--transition);
             white-space: nowrap;
-            box-shadow: 0 2px 12px rgba(52, 211, 153, 0.2);
+            box-shadow: 0 8px 20px var(--accent-glow);
         }
 
         .btn-save:hover {
             transform: translateY(-1px);
-            box-shadow: 0 4px 16px rgba(52, 211, 153, 0.3);
+            box-shadow: 0 12px 26px var(--accent-glow);
+        }
+
+        .btn-save:disabled {
+            cursor: not-allowed;
+            opacity: 0.45;
+            transform: none;
+            box-shadow: none;
         }
 
         .btn-danger {
@@ -527,31 +535,50 @@
 
         .version-grid {
             display: grid;
-            grid-template-columns: 130px 1fr;
-            gap: 10px 14px;
+            grid-template-columns: repeat(3, minmax(0, 1fr));
+            gap: 10px;
             margin: 16px 0 18px;
+            font-size: 0.86em;
+        }
+
+        .version-cell {
             padding: 14px 16px;
             border-radius: var(--radius-sm);
             border: 1px solid var(--border);
             background: var(--surface-2);
-            font-size: 0.86em;
         }
 
         .version-label {
             color: var(--text-dim);
             font-weight: 600;
+            margin-bottom: 6px;
         }
 
         .version-value {
             color: var(--text);
             min-width: 0;
             overflow-wrap: anywhere;
+            font-weight: 700;
         }
 
         .version-actions {
             display: flex;
             gap: 10px;
             flex-wrap: wrap;
+        }
+
+        .version-log {
+            margin-top: 14px;
+            min-height: 140px;
+            max-height: 260px;
+            overflow: auto;
+            padding: 14px 16px;
+            border-radius: var(--radius-sm);
+            background: #080b1a;
+            color: #f8fafc;
+            font-family: var(--mono);
+            font-size: 0.82em;
+            white-space: pre-wrap;
         }
 
         /* Radio option cards */
@@ -664,7 +691,6 @@
 
             .version-grid {
                 grid-template-columns: 1fr;
-                gap: 4px;
             }
 
             .donation-admin-row {
@@ -899,26 +925,43 @@
 
         <!-- 8. Version -->
         <div class="section-card">
-            <div class="section-header"><span class="section-icon">⬆️</span><span class="section-title">系统版本</span>
+            <div class="section-header"><span class="section-icon">⬆️</span><span class="section-title">系统在线更新</span>
             </div>
-            <p class="section-desc">检查 GitHub 远端版本，并可自动更新到最新代码。更新后如服务端代码有变化，请重启 Node.js 服务。</p>
+            <p class="section-desc">检查 Git 远端版本并在线拉取更新。更新后如涉及后端代码，请重启 Node/PM2 进程让新代码生效。</p>
             <div id="version-status">
-                <div class="status info"><span class="status-dot"></span> 登录后自动读取版本信息</div>
+                <div class="status info"><span class="status-dot"></span> 等待检查更新</div>
             </div>
             <div class="version-grid" id="version-grid">
-                <div class="version-label">当前版本</div>
-                <div class="version-value" id="version-current">—</div>
-                <div class="version-label">最新版本</div>
-                <div class="version-value" id="version-latest">—</div>
-                <div class="version-label">分支</div>
-                <div class="version-value" id="version-branch">—</div>
-                <div class="version-label">远端仓库</div>
-                <div class="version-value" id="version-remote">—</div>
+                <div class="version-cell">
+                    <div class="version-label">当前版本</div>
+                    <div class="version-value" id="version-current">-</div>
+                </div>
+                <div class="version-cell">
+                    <div class="version-label">远端版本</div>
+                    <div class="version-value" id="version-latest">-</div>
+                </div>
+                <div class="version-cell">
+                    <div class="version-label">状态</div>
+                    <div class="version-value" id="version-state">未检查</div>
+                </div>
+                <div class="version-cell">
+                    <div class="version-label">分支</div>
+                    <div class="version-value" id="version-branch">-</div>
+                </div>
+                <div class="version-cell">
+                    <div class="version-label">远端仓库</div>
+                    <div class="version-value" id="version-remote">-</div>
+                </div>
+                <div class="version-cell">
+                    <div class="version-label">差异</div>
+                    <div class="version-value" id="version-distance">-</div>
+                </div>
             </div>
             <div class="version-actions">
-                <button class="btn-save" id="check-version-btn" onclick="checkVersion()">检查版本</button>
-                <button class="btn-save" id="update-version-btn" onclick="updateVersion()" style="display:none;">更新版本</button>
+                <button class="btn-save" id="check-version-btn" onclick="checkVersion()">检查更新</button>
+                <button class="btn-save" id="update-version-btn" onclick="updateVersion()" disabled>开始更新</button>
             </div>
+            <pre class="version-log" id="version-log">等待检查更新...</pre>
         </div>
     </div>
 
@@ -978,6 +1021,22 @@
             el.appendChild(box);
         }
 
+        function authBody(extra) {
+            return {
+                token: sessionToken,
+                password: sessionPassword,
+                ...(extra || {})
+            };
+        }
+
+        function versionLog(message, append) {
+            const el = document.getElementById('version-log');
+            if (!el) return;
+            const text = String(message == null ? '' : message);
+            el.textContent = append ? `${el.textContent}\n${text}` : text;
+            el.scrollTop = el.scrollHeight;
+        }
+
         // ── Login ──
         async function doLogin() {
             const pwd = document.getElementById('pwd-input').value;
@@ -1030,12 +1089,11 @@
         }
 
         async function saveMapProvider() {
-            const result = await apiPost('save', {
-                token: sessionToken,
+            const result = await apiPost('save', authBody({
                 data: {
                     map_provider: currentConfig.map_provider || 'osm'
                 }
-            });
+            }));
 
             if (result.status === 'ok') {
                 currentConfig = result.data || currentConfig;
@@ -1051,13 +1109,12 @@
             currentConfig.google_maps_key = k;
             currentConfig.map_provider = 'google';
 
-            const result = await apiPost('save', {
-                token: sessionToken,
+            const result = await apiPost('save', authBody({
                 data: {
                     map_provider: 'google',
                     google_maps_key: k
                 }
-            });
+            }));
 
             if (result.status === 'ok') {
                 currentConfig = result.data || currentConfig;
@@ -1072,13 +1129,12 @@
             currentConfig.google_maps_key = '';
             document.getElementById('api-key').value = '';
 
-            const result = await apiPost('save', {
-                token: sessionToken,
+            const result = await apiPost('save', authBody({
                 data: {
                     map_provider: currentConfig.map_provider || 'osm',
                     google_maps_key: ''
                 }
-            });
+            }));
 
             if (result.status === 'ok') {
                 currentConfig = result.data || currentConfig;
@@ -1121,14 +1177,13 @@
             const t = document.getElementById('site-title').value.trim();
             const f = document.getElementById('site-footer').value.trim();
 
-            const result = await apiPost('save', {
-                token: sessionToken,
+            const result = await apiPost('save', authBody({
                 data: {
                     site_title: t,
                     site_footer: f,
                     map_provider: currentConfig.map_provider || 'osm'
                 }
-            });
+            }));
 
             if (result.status === 'ok') {
                 currentConfig = result.data || currentConfig;
@@ -1140,10 +1195,9 @@
 
         async function saveLanguage() {
             const lang = document.getElementById('default-language').value;
-            const result = await apiPost('save', {
-                token: sessionToken,
+            const result = await apiPost('save', authBody({
                 data: { default_language: lang }
-            });
+            }));
 
             if (result.status === 'ok') {
                 currentConfig = result.data || currentConfig;
@@ -1165,10 +1219,9 @@
         }
 
         async function saveAds() {
-            const result = await apiPost('save', {
-                token: sessionToken,
+            const result = await apiPost('save', authBody({
                 data: { ads: readAdsForm() }
-            });
+            }));
 
             if (result.status === 'ok') {
                 currentConfig = result.data || currentConfig;
@@ -1230,10 +1283,9 @@
         }
 
         async function saveDonation() {
-            const result = await apiPost('save', {
-                token: sessionToken,
+            const result = await apiPost('save', authBody({
                 data: { donation: readDonationForm() }
-            });
+            }));
 
             if (result.status === 'ok') {
                 currentConfig = result.data || currentConfig;
@@ -1270,12 +1322,15 @@
             const updateBtn = document.getElementById('update-version-btn');
             const currentEl = document.getElementById('version-current');
             const latestEl = document.getElementById('version-latest');
+            const stateEl = document.getElementById('version-state');
             const branchEl = document.getElementById('version-branch');
             const remoteEl = document.getElementById('version-remote');
+            const distanceEl = document.getElementById('version-distance');
 
             if (!data) {
                 setStatus(statusEl, 'warn', message || '无法读取版本信息');
-                updateBtn.style.display = 'none';
+                stateEl.textContent = '读取失败';
+                updateBtn.disabled = true;
                 return;
             }
 
@@ -1283,6 +1338,8 @@
             latestEl.textContent = versionLine(data.latest);
             branchEl.textContent = data.upstream ? `${data.branch} → ${data.upstream}` : (data.branch || '—');
             remoteEl.textContent = data.remote_url || '—';
+            distanceEl.textContent = `ahead ${data.ahead || 0} / behind ${data.behind || 0}`;
+            stateEl.textContent = data.state || 'unknown';
 
             if (!data.git_available) {
                 if (data.latest_version && data.version_update_available) {
@@ -1294,32 +1351,38 @@
                     latestEl.textContent = '需要 Git 部署后检查';
                 }
                 branchEl.textContent = '非 Git 部署';
-                updateBtn.style.display = 'none';
+                updateBtn.disabled = true;
                 return;
             }
 
             if (data.fetch_error) {
                 setStatus(statusEl, 'warn', `检查远端失败：${data.fetch_error}`);
-                updateBtn.style.display = 'none';
+                stateEl.textContent = '检查失败';
+                updateBtn.disabled = true;
                 return;
             }
 
             if (data.state === 'outdated') {
                 const versionText = data.latest_version ? ` ${data.latest_version}` : '';
                 setStatus(statusEl, 'info', `发现新版本${versionText}：落后远端 ${data.behind} 个提交`);
-                updateBtn.style.display = 'inline-flex';
+                stateEl.textContent = '可更新';
+                updateBtn.disabled = false;
                 return;
             }
 
-            updateBtn.style.display = 'none';
+            updateBtn.disabled = true;
             if (data.state === 'up_to_date') {
                 setStatus(statusEl, 'ok', '当前已是最新版本');
+                stateEl.textContent = '已是最新';
             } else if (data.state === 'ahead') {
                 setStatus(statusEl, 'info', `当前版本包含 ${data.ahead} 个本地提交，远端没有更新`);
+                stateEl.textContent = '本地超前';
             } else if (data.state === 'diverged') {
                 setStatus(statusEl, 'warn', '本地与远端分叉，请手动处理 Git 状态');
+                stateEl.textContent = '分叉';
             } else if (data.state === 'no_remote') {
                 setStatus(statusEl, 'warn', '未找到远端分支，无法自动检查更新');
+                stateEl.textContent = '无远端';
             } else {
                 setStatus(statusEl, 'info', message || '版本信息已读取');
             }
@@ -1327,18 +1390,28 @@
 
         async function loadVersion() {
             setVersionLoading('正在读取版本信息...');
-            const result = await apiPost('version', { token: sessionToken });
+            versionLog('正在读取本地版本信息...');
+            const result = await apiPost('version', authBody());
             renderVersion(result.data, result.message);
+            if (result.status === 'ok') versionLog('本地版本信息读取完成', true);
+            else versionLog(result.message || '读取版本信息失败', true);
         }
 
         async function checkVersion() {
             const btn = document.getElementById('check-version-btn');
             btn.disabled = true;
             setVersionLoading('正在检查远端版本...');
-            const result = await apiPost('checkversion', { token: sessionToken });
+            versionLog('开始检查 GitHub 远端版本...');
+            const result = await apiPost('checkversion', authBody());
             renderVersion(result.data, result.message);
-            if (result.status === 'ok') toast('版本检查完成');
-            else toast(result.message || '版本检查失败', 'error');
+            if (result.status === 'ok') {
+                if (result.data && result.data.fetch_output) versionLog(result.data.fetch_output, true);
+                versionLog('版本检查完成', true);
+                toast('版本检查完成');
+            } else {
+                versionLog(result.message || '版本检查失败', true);
+                toast(result.message || '版本检查失败', 'error');
+            }
             btn.disabled = false;
         }
 
@@ -1346,12 +1419,17 @@
             const btn = document.getElementById('update-version-btn');
             btn.disabled = true;
             setVersionLoading('正在更新版本，请勿关闭页面...');
-            const result = await apiPost('updateversion', { token: sessionToken });
+            versionLog('开始在线更新...');
+            versionLog('正在执行 git fetch / git pull --ff-only，请勿关闭页面。', true);
+            const result = await apiPost('updateversion', authBody());
             renderVersion(result.data, result.message);
             if (result.status === 'ok') {
+                if (result.data && result.data.update_output) versionLog(result.data.update_output, true);
+                versionLog(result.message || '版本已更新', true);
                 toast((result.message || '版本已更新') + '，页面即将刷新');
                 setTimeout(() => window.location.reload(), 1200);
             } else {
+                versionLog(result.message || '版本更新失败', true);
                 toast(result.message || '版本更新失败', 'error');
                 btn.disabled = false;
             }
