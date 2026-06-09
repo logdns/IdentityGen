@@ -1015,7 +1015,8 @@
         }
 
         function versionLine(commit) {
-            if (!commit || !commit.short) return '—';
+            if (!commit) return '—';
+            if (!commit.short) return commit.version || '—';
             const date = formatDate(commit.date);
             const subject = commit.subject || '';
             const version = commit.version ? `${commit.version} · ` : '';
@@ -1030,8 +1031,8 @@
             const branchEl = document.getElementById('version-branch');
             const remoteEl = document.getElementById('version-remote');
 
-            if (!data || !data.git_available) {
-                statusEl.innerHTML = `<div class="status warn"><span class="status-dot"></span> ${message || '无法读取 Git 版本信息'}</div>`;
+            if (!data) {
+                statusEl.innerHTML = `<div class="status warn"><span class="status-dot"></span> ${message || '无法读取版本信息'}</div>`;
                 updateBtn.style.display = 'none';
                 return;
             }
@@ -1040,6 +1041,20 @@
             latestEl.textContent = versionLine(data.latest);
             branchEl.textContent = data.upstream ? `${data.branch} → ${data.upstream}` : (data.branch || '—');
             remoteEl.textContent = data.remote_url || '—';
+
+            if (!data.git_available) {
+                if (data.latest_version && data.version_update_available) {
+                    statusEl.innerHTML = `<div class="status info"><span class="status-dot"></span> 发现新版本 ${data.latest_version}，当前为非 Git 部署，需按迁移文档手动升级</div>`;
+                } else if (data.latest_version) {
+                    statusEl.innerHTML = `<div class="status ok"><span class="status-dot"></span> 当前版本已是最新；非 Git 部署不支持后台自动更新</div>`;
+                } else {
+                    statusEl.innerHTML = `<div class="status warn"><span class="status-dot"></span> ${message || data.message || '当前目录不是 Git 仓库，无法自动更新'}</div>`;
+                    latestEl.textContent = '需要 Git 部署后检查';
+                }
+                branchEl.textContent = '非 Git 部署';
+                updateBtn.style.display = 'none';
+                return;
+            }
 
             if (data.fetch_error) {
                 statusEl.innerHTML = `<div class="status warn"><span class="status-dot"></span> 检查远端失败：${data.fetch_error}</div>`;

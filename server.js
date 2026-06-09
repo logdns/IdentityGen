@@ -12,6 +12,7 @@
  */
 
 const http = require('http');
+const https = require('https');
 const fs = require('fs');
 const path = require('path');
 const url = require('url');
@@ -26,6 +27,7 @@ const ROOT = __dirname;
 const CONFIG_FILE = path.join(ROOT, 'config.json');
 const VERSION_FILE = path.join(ROOT, 'VERSION');
 const GIT_TIMEOUT = 45000;
+const REMOTE_VERSION_URL = 'https://raw.githubusercontent.com/logdns/IdentityGen/main/VERSION';
 
 // ─── MIME Types ───
 const MIME = {
@@ -112,6 +114,25 @@ function formatVersion(value) {
     return version ? `v${version}` : '';
 }
 
+function parseVersion(value) {
+    const version = cleanOutput(value).replace(/^v/i, '');
+    const match = version.match(/^(\d+)\.(\d+)\.(\d+)(?:[-+].*)?$/);
+    if (!match) return null;
+    return match.slice(1).map(n => parseInt(n, 10));
+}
+
+function isNewerVersion(latest, current) {
+    const latestParts = parseVersion(latest);
+    const currentParts = parseVersion(current);
+    if (!latestParts || !currentParts) return Boolean(latest && current && latest !== current);
+
+    for (let i = 0; i < latestParts.length; i += 1) {
+        if (latestParts[i] > currentParts[i]) return true;
+        if (latestParts[i] < currentParts[i]) return false;
+    }
+    return false;
+}
+
 function readLocalVersion() {
     try {
         if (fs.existsSync(VERSION_FILE)) {
@@ -121,6 +142,39 @@ function readLocalVersion() {
         console.error('Version read error:', e.message);
     }
     return '';
+}
+
+function fetchText(remoteUrl, timeout = 10000) {
+    return new Promise((resolve, reject) => {
+        const req = https.get(remoteUrl, {
+            headers: {
+                'User-Agent': 'IdentityGen-Version-Check'
+            },
+            timeout
+        }, res => {
+            if (res.statusCode < 200 || res.statusCode >= 300) {
+                res.resume();
+                reject(new Error(`HTTP ${res.statusCode}`));
+                return;
+            }
+
+            let body = '';
+            res.setEncoding('utf8');
+            res.on('data', chunk => {
+                body += chunk;
+                if (body.length > 1024) req.destroy(new Error('Response too large'));
+            });
+            res.on('end', () => resolve(body));
+        });
+
+        req.on('timeout', () => req.destroy(new Error('Request timed out')));
+        req.on('error', reject);
+    });
+}
+
+async function fetchRemoteVersionFile() {
+    const version = await fetchText(REMOTE_VERSION_URL);
+    return formatVersion(version);
 }
 
 async function runGit(args, options = {}) {
@@ -159,14 +213,53 @@ async function getRemoteFileVersion(ref) {
 }
 
 async function getVersionInfo(options = {}) {
+    const localVersion = readLocalVersion();
     const insideWorkTree = await tryGit(['rev-parse', '--is-inside-work-tree']);
     if (insideWorkTree !== 'true') {
+        let latestVersion = '';
+        let fetch_error = '';
+        if (options.fetch) {
+            try {
+                latestVersion = await fetchRemoteVersionFile();
+            } catch (e) {
+                fetch_error = e.message;
+            }
+        }
+
         return {
             git_available: false,
-            update_available: false,
+            update_available: isNewerVersion(latestVersion, localVersion),
             can_update: false,
             state: 'no_git',
-            message: '当前目录不是 Git 仓库，无法检查版本'
+            branch: '',
+            upstream: '',
+            has_upstream: false,
+            remote_url: 'https://github.com/logdns/IdentityGen',
+            ahead: 0,
+            behind: 0,
+            fetch_error,
+            current_version: localVersion,
+            latest_version: latestVersion,
+            version_update_available: isNewerVersion(latestVersion, localVersion),
+            current: {
+                version: localVersion,
+                hash: '',
+                short: '',
+                date: '',
+                subject: localVersion ? '本地 VERSION 文件' : ''
+            },
+            latest: latestVersion ? {
+                version: latestVersion,
+                hash: '',
+                short: '',
+                date: '',
+                subject: 'GitHub VERSION 文件'
+            } : null,
+            message: fetch_error
+                ? `当前目录不是 Git 仓库，且检查 GitHub VERSION 失败：${fetch_error}`
+                : localVersion
+                ? '当前目录不是 Git 仓库，无法自动检查和更新版本'
+                : '当前目录不是 Git 仓库，且未找到 VERSION 文件'
         };
     }
 
@@ -191,7 +284,7 @@ async function getVersionInfo(options = {}) {
     const remoteHash = upstream ? await tryGit(['rev-parse', upstream]) : '';
     const remoteDate = remoteHash ? await tryGit(['log', '-1', '--format=%cI', upstream]) : '';
     const remoteSubject = remoteHash ? await tryGit(['log', '-1', '--format=%s', upstream]) : '';
-    const currentVersion = readLocalVersion() || await getGitTagVersion('HEAD') || (hash ? `commit-${hash.slice(0, 7)}` : '');
+    const currentVersion = localVersion || await getGitTagVersion('HEAD') || (hash ? `commit-${hash.slice(0, 7)}` : '');
     const latestVersion = remoteHash
         ? (await getRemoteFileVersion(upstream) || await getGitTagVersion(upstream) || `commit-${remoteHash.slice(0, 7)}`)
         : '';
@@ -226,7 +319,7 @@ async function getVersionInfo(options = {}) {
         fetch_error,
         current_version: currentVersion,
         latest_version: latestVersion,
-        version_update_available: Boolean(latestVersion && currentVersion && latestVersion !== currentVersion),
+        version_update_available: isNewerVersion(latestVersion, currentVersion),
         current: {
             version: currentVersion,
             hash,

@@ -82,6 +82,40 @@ git pull --ff-only
 
 处理完 Git 状态后，再回到后台点击“检查版本”和“更新版本”。
 
+### 后台提示无法读取 Git 版本信息
+
+如果后台“系统版本”提示无法读取 Git 版本信息，通常说明当前部署目录不是 Git 仓库，或 Node.js 进程无法读取 `.git` 目录。请在服务器网站目录检查：
+
+```bash
+cd /www/wwwroot/identitygen
+git rev-parse --is-inside-work-tree
+```
+
+正常应输出：
+
+```text
+true
+```
+
+如果命令报错，说明这是文件上传部署，不支持后台自动更新。建议改为 Git 部署：
+
+```bash
+cd /www/wwwroot
+mv identitygen identitygen.bak
+git clone https://github.com/logdns/IdentityGen.git identitygen
+cp identitygen.bak/config.json identitygen/config.json
+cd identitygen
+node server.js 3002
+```
+
+如果使用 PM2，请重新启动：
+
+```bash
+pm2 restart identitygen
+```
+
+从 `v1.1.1` 开始，即使不是 Git 部署，后台也会显示本地 `VERSION` 版本号，并会尝试读取 GitHub 上的最新 `VERSION`。但“更新版本”仍然需要 Git 仓库，文件上传部署只能按上面的步骤手动升级。
+
 ### 发布版本规范
 
 新版本发布时需要同步推送 `main` 分支和版本 tag：
