@@ -141,7 +141,12 @@ git pull --ff-only origin main
 pm2 restart identitygen
 ```
 
-从 `v1.1.2` 开始，后台更新会自动恢复这种“仅 VERSION 被修改”的情况。其它文件有本地修改时，后台会显示具体文件名，需要先手动确认是否保留。
+从 `v1.1.3` 开始，后台更新会先自动 `git stash push --include-untracked` 暂存本地未提交改动，再执行 `git pull --ff-only`。如果更新失败，系统会尝试 `git stash pop` 恢复本地改动。更新成功后，本地改动会留在 stash 中，必要时可手动查看：
+
+```bash
+git stash list
+git stash show -p stash@{0}
+```
 
 ### 发布版本规范
 

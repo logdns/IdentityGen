@@ -231,11 +231,8 @@ function formatDirtyFiles(files) {
         .join('，');
 }
 
-function isOnlyUnstagedVersionChange(files) {
-    return files.length === 1
-        && files[0].path === 'VERSION'
-        && files[0].index === ' '
-        && files[0].worktree === 'M';
+function createStashMessage() {
+    return `identitygen-auto-update-${Date.now()}`;
 }
 
 async function getVersionInfo(options = {}) {
@@ -385,28 +382,25 @@ async function updateVersion() {
     }
 
     const dirty = parseGitStatus(await tryGit(['status', '--porcelain']));
-    if (isOnlyUnstagedVersionChange(dirty)) {
+    const stashMessage = createStashMessage();
+    let stashed = false;
+
+    if (dirty.length) {
         try {
-            await runGit(['restore', '--', 'VERSION']);
+            const stashOutput = await runGit(['stash', 'push', '--include-untracked', '-m', stashMessage], { timeout: 120000 });
+            stashed = !/No local changes to save/i.test(stashOutput);
         } catch (e) {
+            const dirtyFiles = formatDirtyFiles(dirty);
             return {
                 ok: false,
                 statusCode: 409,
-                message: `检测到 VERSION 文件被本地修改，自动恢复失败：${e.message}`,
-                data: before
+                message: `检测到本地代码有未提交修改，且自动暂存失败：${dirtyFiles}。错误：${e.message}`,
+                data: {
+                    ...before,
+                    dirty_files: dirty
+                }
             };
         }
-    } else if (dirty.length) {
-        const dirtyFiles = formatDirtyFiles(dirty);
-        return {
-            ok: false,
-            statusCode: 409,
-            message: `检测到本地代码有未提交修改，已停止自动更新：${dirtyFiles}`,
-            data: {
-                ...before,
-                dirty_files: dirty
-            }
-        };
     }
 
     const pullArgs = before.has_upstream ? ['pull', '--ff-only'] : ['pull', '--ff-only', 'origin', before.branch];
@@ -414,9 +408,26 @@ async function updateVersion() {
         const output = await runGit(pullArgs, { timeout: 120000 });
         const after = await getVersionInfo();
         after.update_output = output;
-        return { ok: true, message: '版本已更新，请按需重启服务使服务端代码生效。', data: after };
+        after.stashed_local_changes = stashed;
+        return {
+            ok: true,
+            message: stashed
+                ? '版本已更新；本地未提交改动已自动暂存，请按需重启服务。'
+                : '版本已更新，请按需重启服务使服务端代码生效。',
+            data: after
+        };
     } catch (e) {
-        return { ok: false, statusCode: 500, message: `更新失败：${e.message}`, data: before };
+        if (stashed) {
+            await tryGit(['stash', 'pop']);
+        }
+        return {
+            ok: false,
+            statusCode: 500,
+            message: stashed
+                ? `更新失败，已尝试恢复本地未提交改动：${e.message}`
+                : `更新失败：${e.message}`,
+            data: before
+        };
     }
 }
 

@@ -1106,9 +1106,13 @@
             setVersionLoading('正在更新版本，请勿关闭页面...');
             const result = await apiPost('updateversion', { password: sessionPassword });
             renderVersion(result.data, result.message);
-            if (result.status === 'ok') toast(result.message || '版本已更新');
-            else toast(result.message || '版本更新失败', 'error');
-            btn.disabled = false;
+            if (result.status === 'ok') {
+                toast((result.message || '版本已更新') + '，页面即将刷新');
+                setTimeout(() => window.location.reload(), 1200);
+            } else {
+                toast(result.message || '版本更新失败', 'error');
+                btn.disabled = false;
+            }
         }
 
         // ── Load config into UI ──
