@@ -15,11 +15,17 @@ const http = require('http');
 const fs = require('fs');
 const path = require('path');
 const url = require('url');
+const { execFile } = require('child_process');
+const { promisify } = require('util');
+
+const execFileAsync = promisify(execFile);
 
 // ─── Configuration ───
 const PORT = process.argv[2] || process.env.PORT || 3002;
 const ROOT = __dirname;
 const CONFIG_FILE = path.join(ROOT, 'config.json');
+const VERSION_FILE = path.join(ROOT, 'VERSION');
+const GIT_TIMEOUT = 45000;
 
 // ─── MIME Types ───
 const MIME = {
@@ -80,6 +86,204 @@ function getPublicConfig(config) {
         site_title: config.site_title || '',
         site_footer: config.site_footer || ''
     };
+}
+
+// ─── Version Helpers ───
+function cleanOutput(value) {
+    return String(value || '').trim();
+}
+
+function safeRemoteUrl(remoteUrl) {
+    const value = cleanOutput(remoteUrl);
+    if (!value) return '';
+
+    try {
+        const parsed = new URL(value);
+        parsed.username = '';
+        parsed.password = '';
+        return parsed.toString();
+    } catch (e) {
+        return value.replace(/^(https?:\/\/)[^/@]+@/i, '$1');
+    }
+}
+
+function formatVersion(value) {
+    const version = cleanOutput(value).replace(/^v/i, '');
+    return version ? `v${version}` : '';
+}
+
+function readLocalVersion() {
+    try {
+        if (fs.existsSync(VERSION_FILE)) {
+            return formatVersion(fs.readFileSync(VERSION_FILE, 'utf8'));
+        }
+    } catch (e) {
+        console.error('Version read error:', e.message);
+    }
+    return '';
+}
+
+async function runGit(args, options = {}) {
+    try {
+        const result = await execFileAsync('git', args, {
+            cwd: ROOT,
+            timeout: options.timeout || GIT_TIMEOUT,
+            maxBuffer: 1024 * 1024
+        });
+        return cleanOutput(result.stdout);
+    } catch (e) {
+        const message = cleanOutput(e.stderr) || cleanOutput(e.stdout) || e.message || 'Git command failed';
+        const err = new Error(message);
+        err.code = e.code;
+        throw err;
+    }
+}
+
+async function tryGit(args, fallback = '') {
+    try {
+        return await runGit(args);
+    } catch (e) {
+        return fallback;
+    }
+}
+
+async function getGitTagVersion(ref) {
+    const tag = await tryGit(['describe', '--tags', '--abbrev=0', ref]);
+    return formatVersion(tag);
+}
+
+async function getRemoteFileVersion(ref) {
+    if (!ref) return '';
+    const version = await tryGit(['show', `${ref}:VERSION`]);
+    return formatVersion(version);
+}
+
+async function getVersionInfo(options = {}) {
+    const insideWorkTree = await tryGit(['rev-parse', '--is-inside-work-tree']);
+    if (insideWorkTree !== 'true') {
+        return {
+            git_available: false,
+            update_available: false,
+            can_update: false,
+            state: 'no_git',
+            message: '当前目录不是 Git 仓库，无法检查版本'
+        };
+    }
+
+    const branch = await tryGit(['branch', '--show-current']);
+    const configuredUpstream = await tryGit(['rev-parse', '--abbrev-ref', '--symbolic-full-name', '@{u}']);
+    const upstream = configuredUpstream || (branch ? `origin/${branch}` : '');
+    const remoteName = upstream ? upstream.split('/')[0] : 'origin';
+    let fetch_error = '';
+
+    if (options.fetch && remoteName) {
+        try {
+            await runGit(['fetch', '--quiet', '--prune', remoteName], { timeout: 90000 });
+        } catch (e) {
+            fetch_error = e.message;
+        }
+    }
+
+    const hash = await tryGit(['rev-parse', 'HEAD']);
+    const date = await tryGit(['log', '-1', '--format=%cI']);
+    const subject = await tryGit(['log', '-1', '--format=%s']);
+    const remoteUrl = await tryGit(['config', '--get', `remote.${remoteName}.url`]);
+    const remoteHash = upstream ? await tryGit(['rev-parse', upstream]) : '';
+    const remoteDate = remoteHash ? await tryGit(['log', '-1', '--format=%cI', upstream]) : '';
+    const remoteSubject = remoteHash ? await tryGit(['log', '-1', '--format=%s', upstream]) : '';
+    const currentVersion = readLocalVersion() || await getGitTagVersion('HEAD') || (hash ? `commit-${hash.slice(0, 7)}` : '');
+    const latestVersion = remoteHash
+        ? (await getRemoteFileVersion(upstream) || await getGitTagVersion(upstream) || `commit-${remoteHash.slice(0, 7)}`)
+        : '';
+
+    let ahead = 0;
+    let behind = 0;
+    if (remoteHash) {
+        const counts = await tryGit(['rev-list', '--left-right', '--count', `HEAD...${upstream}`]);
+        const parts = counts.split(/\s+/).map(n => parseInt(n, 10));
+        ahead = Number.isFinite(parts[0]) ? parts[0] : 0;
+        behind = Number.isFinite(parts[1]) ? parts[1] : 0;
+    }
+
+    let state = 'unknown';
+    if (!remoteHash) state = 'no_remote';
+    else if (ahead > 0 && behind > 0) state = 'diverged';
+    else if (behind > 0) state = 'outdated';
+    else if (ahead > 0) state = 'ahead';
+    else state = 'up_to_date';
+
+    return {
+        git_available: true,
+        update_available: behind > 0,
+        can_update: state === 'outdated',
+        state,
+        branch: branch || 'HEAD',
+        upstream,
+        has_upstream: Boolean(configuredUpstream),
+        remote_url: safeRemoteUrl(remoteUrl),
+        ahead,
+        behind,
+        fetch_error,
+        current_version: currentVersion,
+        latest_version: latestVersion,
+        version_update_available: Boolean(latestVersion && currentVersion && latestVersion !== currentVersion),
+        current: {
+            version: currentVersion,
+            hash,
+            short: hash ? hash.slice(0, 7) : '',
+            date,
+            subject
+        },
+        latest: remoteHash ? {
+            version: latestVersion,
+            hash: remoteHash,
+            short: remoteHash.slice(0, 7),
+            date: remoteDate,
+            subject: remoteSubject
+        } : null
+    };
+}
+
+async function updateVersion() {
+    const before = await getVersionInfo({ fetch: true });
+
+    if (!before.git_available) {
+        return { ok: false, statusCode: 400, message: before.message, data: before };
+    }
+    if (before.fetch_error) {
+        return { ok: false, statusCode: 502, message: `检查远端版本失败：${before.fetch_error}`, data: before };
+    }
+    if (!before.update_available) {
+        return { ok: true, message: '当前已是最新版本', data: before };
+    }
+    if (!before.can_update) {
+        return {
+            ok: false,
+            statusCode: 409,
+            message: '当前分支与远端存在本地提交或分叉，不能自动更新。请先手动处理 Git 状态。',
+            data: before
+        };
+    }
+
+    const dirty = await tryGit(['status', '--porcelain']);
+    if (dirty) {
+        return {
+            ok: false,
+            statusCode: 409,
+            message: '检测到本地代码有未提交修改，已停止自动更新，避免覆盖本地改动。',
+            data: before
+        };
+    }
+
+    const pullArgs = before.has_upstream ? ['pull', '--ff-only'] : ['pull', '--ff-only', 'origin', before.branch];
+    try {
+        const output = await runGit(pullArgs, { timeout: 120000 });
+        const after = await getVersionInfo();
+        after.update_output = output;
+        return { ok: true, message: '版本已更新，请按需重启服务使服务端代码生效。', data: after };
+    } catch (e) {
+        return { ok: false, statusCode: 500, message: `更新失败：${e.message}`, data: before };
+    }
 }
 
 // ─── HTTP Helpers ───
@@ -199,6 +403,33 @@ async function handleAPI(req, res, parsedUrl) {
                     message: '写入配置文件失败'
                 });
             }
+        }
+
+        // ── Version status/check/update ──
+        if (action === 'version' || action === 'checkversion' || action === 'updateversion') {
+            const config = readConfig();
+            if (input.password !== (config.password || 'admin')) {
+                return sendJSON(res, 401, {
+                    status: 'error',
+                    message: '认证失败'
+                });
+            }
+
+            if (action === 'updateversion') {
+                const result = await updateVersion();
+                return sendJSON(res, result.ok ? 200 : (result.statusCode || 500), {
+                    status: result.ok ? 'ok' : 'error',
+                    message: result.message,
+                    data: result.data
+                });
+            }
+
+            const data = await getVersionInfo({ fetch: action === 'checkversion' });
+            return sendJSON(res, 200, {
+                status: data.fetch_error ? 'error' : 'ok',
+                message: data.fetch_error ? `检查远端版本失败：${data.fetch_error}` : '',
+                data
+            });
         }
     }
 

@@ -478,6 +478,35 @@
             background: var(--amber);
         }
 
+        .version-grid {
+            display: grid;
+            grid-template-columns: 130px 1fr;
+            gap: 10px 14px;
+            margin: 16px 0 18px;
+            padding: 14px 16px;
+            border-radius: var(--radius-sm);
+            border: 1px solid var(--border);
+            background: var(--surface-2);
+            font-size: 0.86em;
+        }
+
+        .version-label {
+            color: var(--text-dim);
+            font-weight: 600;
+        }
+
+        .version-value {
+            color: var(--text);
+            min-width: 0;
+            overflow-wrap: anywhere;
+        }
+
+        .version-actions {
+            display: flex;
+            gap: 10px;
+            flex-wrap: wrap;
+        }
+
         /* Radio option cards */
         .radio-cards {
             display: flex;
@@ -584,6 +613,11 @@
 
             .radio-cards {
                 flex-direction: column;
+            }
+
+            .version-grid {
+                grid-template-columns: 1fr;
+                gap: 4px;
             }
         }
 
@@ -699,6 +733,9 @@
             <div id="osm-status">
                 <div class="status ok"><span class="status-dot"></span> 基础嵌入模式无需配置，可直接使用</div>
             </div>
+            <div class="field">
+                <button class="btn-save" onclick="saveMapProvider()">保存地图服务</button>
+            </div>
         </div>
 
         <!-- 3. FakerAPI -->
@@ -734,6 +771,30 @@
             </div>
             <div class="field">
                 <button class="btn-save" onclick="saveSite()">保存设置</button>
+            </div>
+        </div>
+
+        <!-- 5. Version -->
+        <div class="section-card">
+            <div class="section-header"><span class="section-icon">⬆️</span><span class="section-title">系统版本</span>
+            </div>
+            <p class="section-desc">检查 GitHub 远端版本，并可自动更新到最新代码。更新后如服务端代码有变化，请重启 Node.js 服务。</p>
+            <div id="version-status">
+                <div class="status info"><span class="status-dot"></span> 登录后自动读取版本信息</div>
+            </div>
+            <div class="version-grid" id="version-grid">
+                <div class="version-label">当前版本</div>
+                <div class="version-value" id="version-current">—</div>
+                <div class="version-label">最新版本</div>
+                <div class="version-value" id="version-latest">—</div>
+                <div class="version-label">分支</div>
+                <div class="version-value" id="version-branch">—</div>
+                <div class="version-label">远端仓库</div>
+                <div class="version-value" id="version-remote">—</div>
+            </div>
+            <div class="version-actions">
+                <button class="btn-save" id="check-version-btn" onclick="checkVersion()">检查版本</button>
+                <button class="btn-save" id="update-version-btn" onclick="updateVersion()" style="display:none;">更新版本</button>
             </div>
         </div>
     </div>
@@ -794,6 +855,7 @@
                 document.getElementById('login-screen').classList.add('hidden');
                 document.getElementById('admin-panel').classList.remove('hidden');
                 loadConfigUI();
+                loadVersion();
             } else {
                 errEl.textContent = '❌ ' + (result.message || '登录失败，请重试');
                 errEl.style.display = 'block';
@@ -830,6 +892,22 @@
             currentConfig.map_provider = p;
         }
 
+        async function saveMapProvider() {
+            const result = await apiPost('save', {
+                password: sessionPassword,
+                data: {
+                    map_provider: currentConfig.map_provider || 'osm'
+                }
+            });
+
+            if (result.status === 'ok') {
+                currentConfig = result.data || currentConfig;
+                toast('✅ 地图服务已保存');
+            } else {
+                toast(result.message || '保存失败', 'error');
+            }
+        }
+
         async function saveKey() {
             const k = document.getElementById('api-key').value.trim();
             if (!k) return toast('请输入 API Key', 'error');
@@ -845,6 +923,7 @@
             });
 
             if (result.status === 'ok') {
+                currentConfig = result.data || currentConfig;
                 updateKeyUI();
                 toast('✅ API Key 已保存');
             } else {
@@ -858,10 +937,14 @@
 
             const result = await apiPost('save', {
                 password: sessionPassword,
-                data: { google_maps_key: '' }
+                data: {
+                    map_provider: currentConfig.map_provider || 'osm',
+                    google_maps_key: ''
+                }
             });
 
             if (result.status === 'ok') {
+                currentConfig = result.data || currentConfig;
                 updateKeyUI();
                 toast('API Key 已清除');
             } else {
@@ -901,24 +984,116 @@
             const t = document.getElementById('site-title').value.trim();
             const f = document.getElementById('site-footer').value.trim();
 
-            const data = {};
-            if (t) data.site_title = t;
-            if (f) data.site_footer = f;
-            // Also save current map provider
-            data.map_provider = currentConfig.map_provider || 'osm';
-
             const result = await apiPost('save', {
                 password: sessionPassword,
-                data: data
+                data: {
+                    site_title: t,
+                    site_footer: f,
+                    map_provider: currentConfig.map_provider || 'osm'
+                }
             });
 
             if (result.status === 'ok') {
-                if (t) currentConfig.site_title = t;
-                if (f) currentConfig.site_footer = f;
+                currentConfig = result.data || currentConfig;
                 toast('✅ 网站设置已保存');
             } else {
                 toast(result.message || '保存失败', 'error');
             }
+        }
+
+        // ── Version ──
+        function setVersionLoading(message) {
+            document.getElementById('version-status').innerHTML =
+                `<div class="status info"><span class="status-dot"></span> ${message}</div>`;
+        }
+
+        function formatDate(value) {
+            if (!value) return '';
+            const d = new Date(value);
+            if (Number.isNaN(d.getTime())) return value;
+            return d.toLocaleString('zh-CN', { hour12: false });
+        }
+
+        function versionLine(commit) {
+            if (!commit || !commit.short) return '—';
+            const date = formatDate(commit.date);
+            const subject = commit.subject || '';
+            const version = commit.version ? `${commit.version} · ` : '';
+            return `${version}${commit.short}${date ? ' · ' + date : ''}${subject ? ' · ' + subject : ''}`;
+        }
+
+        function renderVersion(data, message) {
+            const statusEl = document.getElementById('version-status');
+            const updateBtn = document.getElementById('update-version-btn');
+            const currentEl = document.getElementById('version-current');
+            const latestEl = document.getElementById('version-latest');
+            const branchEl = document.getElementById('version-branch');
+            const remoteEl = document.getElementById('version-remote');
+
+            if (!data || !data.git_available) {
+                statusEl.innerHTML = `<div class="status warn"><span class="status-dot"></span> ${message || '无法读取 Git 版本信息'}</div>`;
+                updateBtn.style.display = 'none';
+                return;
+            }
+
+            currentEl.textContent = versionLine(data.current);
+            latestEl.textContent = versionLine(data.latest);
+            branchEl.textContent = data.upstream ? `${data.branch} → ${data.upstream}` : (data.branch || '—');
+            remoteEl.textContent = data.remote_url || '—';
+
+            if (data.fetch_error) {
+                statusEl.innerHTML = `<div class="status warn"><span class="status-dot"></span> 检查远端失败：${data.fetch_error}</div>`;
+                updateBtn.style.display = 'none';
+                return;
+            }
+
+            if (data.state === 'outdated') {
+                const versionText = data.latest_version ? ` ${data.latest_version}` : '';
+                statusEl.innerHTML = `<div class="status info"><span class="status-dot"></span> 发现新版本${versionText}：落后远端 ${data.behind} 个提交</div>`;
+                updateBtn.style.display = 'inline-flex';
+                return;
+            }
+
+            updateBtn.style.display = 'none';
+            if (data.state === 'up_to_date') {
+                statusEl.innerHTML = `<div class="status ok"><span class="status-dot"></span> 当前已是最新版本</div>`;
+            } else if (data.state === 'ahead') {
+                statusEl.innerHTML = `<div class="status info"><span class="status-dot"></span> 当前版本包含 ${data.ahead} 个本地提交，远端没有更新</div>`;
+            } else if (data.state === 'diverged') {
+                statusEl.innerHTML = `<div class="status warn"><span class="status-dot"></span> 本地与远端分叉，请手动处理 Git 状态</div>`;
+            } else if (data.state === 'no_remote') {
+                statusEl.innerHTML = `<div class="status warn"><span class="status-dot"></span> 未找到远端分支，无法自动检查更新</div>`;
+            } else {
+                statusEl.innerHTML = `<div class="status info"><span class="status-dot"></span> ${message || '版本信息已读取'}</div>`;
+            }
+        }
+
+        async function loadVersion() {
+            setVersionLoading('正在读取版本信息...');
+            const result = await apiPost('version', { password: sessionPassword });
+            renderVersion(result.data, result.message);
+        }
+
+        async function checkVersion() {
+            const btn = document.getElementById('check-version-btn');
+            btn.disabled = true;
+            setVersionLoading('正在检查远端版本...');
+            const result = await apiPost('checkversion', { password: sessionPassword });
+            renderVersion(result.data, result.message);
+            if (result.status === 'ok') toast('版本检查完成');
+            else toast(result.message || '版本检查失败', 'error');
+            btn.disabled = false;
+        }
+
+        async function updateVersion() {
+            const btn = document.getElementById('update-version-btn');
+            btn.disabled = true;
+            setVersionLoading('正在更新版本，请勿关闭页面...');
+            const result = await apiPost('updateversion', { password: sessionPassword });
+            renderVersion(result.data, result.message);
+            if (result.status === 'ok') toast(result.message || '版本已更新');
+            else toast(result.message || '版本更新失败', 'error');
+            btn.disabled = false;
         }
 
         // ── Load config into UI ──
@@ -926,12 +1101,12 @@
             const prov = currentConfig.map_provider || 'osm';
             pickMap(prov);
             const k = currentConfig.google_maps_key;
-            if (k) document.getElementById('api-key').value = k;
+            document.getElementById('api-key').value = k || '';
             updateKeyUI();
             const t = currentConfig.site_title;
             const f = currentConfig.site_footer;
-            if (t) document.getElementById('site-title').value = t;
-            if (f) document.getElementById('site-footer').value = f;
+            document.getElementById('site-title').value = t || '';
+            document.getElementById('site-footer').value = f || '';
         }
 
         // ── Toast ──

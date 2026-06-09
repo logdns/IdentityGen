@@ -17,10 +17,12 @@
 - [项目结构](#-项目结构)
 - [快速开始](#-快速开始)
 - [配置说明](#-配置说明)
+- [版本更新](#-版本更新)
 - [部署指南](#-部署指南)
   - [通用部署](#通用部署)
   - [Nginx 部署](#nginx-部署)
   - [宝塔面板部署](#宝塔面板部署)
+- [旧版本迁移](#-旧版本迁移)
 - [API 说明](#-api-说明)
 - [常见问题](#-常见问题)
 - [许可证](#-许可证)
@@ -37,6 +39,7 @@
 - ☀️🌙 **日夜主题** — 亮色/暗色主题自由切换，偏好自动保存
 - 📱 **响应式设计** — 完美适配手机、平板和桌面设备
 - 🔐 **后台管理** — 密码保护的管理面板，可配置地图服务、API Key、网站品牌
+- ⬆️ **后台更新** — 后台检查 GitHub 版本并执行安全更新
 - 🎨 **高级 UI** — Glassmorphism 设计、粒子动画背景、微交互动效
 - 🔄 **真实地址** — 通过 OpenStreetMap Nominatim API 获取真实地址数据
 - 👤 **真实姓名** — 通过 FakerAPI 获取真实格式的姓名和个人信息
@@ -67,8 +70,11 @@ identitygen/
 ├── index.html           # 主页面 — 身份信息生成器前端
 ├── admin.html           # 后台管理面板 — 密码保护
 ├── server.js            # Node.js 服务器 — 静态文件服务 + 配置 API（零依赖）
+├── VERSION              # 当前发布版本号 — 后台版本显示使用
 ├── config.example.json  # 配置文件模板 — 供参考，实际配置由 server.js 自动创建
 ├── config.json          # （运行时自动生成，不纳入 Git）存储密码、API Key、网站设置等
+├── docs/
+│   └── MIGRATION.md     # 旧版本迁移指南
 ├── style.css            # 全局样式 — 亮色/暗色主题
 ├── app.js               # 主逻辑 — 生成、i18n、地图、粒子动画
 ├── data.js              # 静态数据 — 美国/英国州、城市、街道、姓名等
@@ -117,6 +123,7 @@ PORT=8080 node server.js
 | Google Maps API Key | 使用 Google Maps Embed API 时需要 | 无（使用基础嵌入）|
 | 网站标题 | 自定义 Logo 文字 | `IdentityGen` |
 | 页脚文字 | 自定义页脚内容（支持 HTML） | `© 2026 IdentityGen` |
+| 系统版本 | 检查远端版本、执行安全更新 | 当前 Git 版本 |
 
 ### 获取 Google Maps API Key
 
@@ -125,6 +132,24 @@ PORT=8080 node server.js
 3. 启用 **Maps Embed API**
 4. 在"凭据"页面创建 API Key
 5. 将 API Key 填入后台设置
+
+---
+
+## ⬆️ 版本更新
+
+从 `v1.1.0` 开始，后台管理面板提供“系统版本”区域：
+
+- **检查版本**：连接 GitHub 远端，检查当前部署是否落后。
+- **更新版本**：执行 `git pull --ff-only`，只允许安全的快进更新。
+- **版本显示**：优先读取仓库根目录 `VERSION` 文件，同时显示当前提交和远端提交。
+
+自动更新不会覆盖本地未提交修改。若服务器代码有改动、本地分支有自定义提交或与远端分叉，后台会拒绝更新，并提示手动处理 Git 状态。
+
+更新完成后，如果服务端代码发生变化，请重启 Node.js 服务：
+
+```bash
+pm2 restart identitygen
+```
 
 ---
 
@@ -149,6 +174,7 @@ pm2 startup
 需要的文件：
 ```
 server.js         ← Node.js 服务器（静态文件 + 配置 API）
+VERSION
 index.html
 admin.html
 style.css
@@ -346,6 +372,20 @@ location / {
 | 后台保存失败 | 检查 `config.json` 文件权限，确保 Node.js 进程有写入权限 |
 | 地图不显示 | 检查是否可以正常访问 Google Maps；如需 API Key，在后台设置中配置 |
 | Node.js 服务挂掉 | 使用 PM2 管理进程：`pm2 restart identitygen` |
+
+---
+
+## 🔄 旧版本迁移
+
+旧版本没有后台更新入口，首次迁移到 `v1.1.0` 需要在服务器命令行执行一次手动更新：
+
+```bash
+cd /www/wwwroot/identitygen
+git pull --ff-only origin main
+pm2 restart identitygen
+```
+
+迁移前请确认 `config.json` 没有被 Git 跟踪，避免后台密码、API Key 和网站定制配置被覆盖。完整步骤见 [旧版本迁移指南](docs/MIGRATION.md)。
 
 ---
 
