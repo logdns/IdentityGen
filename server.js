@@ -17,6 +17,7 @@ const fs = require('fs');
 const path = require('path');
 const url = require('url');
 const { execFile } = require('child_process');
+const crypto = require('crypto');
 const { promisify } = require('util');
 
 const execFileAsync = promisify(execFile);
@@ -27,6 +28,7 @@ const ROOT = __dirname;
 const CONFIG_FILE = path.join(ROOT, 'config.json');
 const VERSION_FILE = path.join(ROOT, 'VERSION');
 const GIT_TIMEOUT = 45000;
+const MAX_BODY_SIZE = 256 * 1024;
 const REMOTE_VERSION_URL = 'https://raw.githubusercontent.com/logdns/IdentityGen/main/VERSION';
 
 // ─── MIME Types ───
@@ -53,27 +55,144 @@ const DEFAULT_CONFIG = {
     map_provider: 'osm',
     google_maps_key: '',
     site_title: '',
-    site_footer: ''
+    site_footer: '',
+    default_language: 'en',
+    ads: {
+        top: { enabled: false, html: '' },
+        inline: { enabled: false, html: '' },
+        footer: { enabled: false, html: '' }
+    },
+    donation: {
+        enabled: false,
+        title: '',
+        note: '',
+        items: []
+    }
 };
+
+const LANGS = new Set(['en', 'zh-CN', 'zh-TW', 'ja']);
+const AD_SLOTS = ['top', 'inline', 'footer'];
+const SESSIONS = new Map();
+const SESSION_TTL = 1000 * 60 * 60 * 6;
+
+function createSession() {
+    const token = crypto.randomBytes(24).toString('hex');
+    SESSIONS.set(token, Date.now() + SESSION_TTL);
+    return token;
+}
+
+function isAuthenticated(input, config) {
+    if (input.password && input.password === (config.password || 'admin')) return true;
+    const token = input.token || '';
+    const expires = SESSIONS.get(token);
+    if (!expires || expires < Date.now()) {
+        if (token) SESSIONS.delete(token);
+        return false;
+    }
+    SESSIONS.set(token, Date.now() + SESSION_TTL);
+    return true;
+}
+
+function limitString(value, maxLength) {
+    return String(value == null ? '' : value).slice(0, maxLength);
+}
+
+function toBoolean(value) {
+    return value === true || value === 'true' || value === 1 || value === '1';
+}
+
+function stripUnsafeHtml(value, maxLength = 5000) {
+    return limitString(value, maxLength)
+        .replace(/<script[\s\S]*?>[\s\S]*?<\/script>/gi, '')
+        .replace(/\son[a-z]+\s*=\s*(?:"[^"]*"|'[^']*'|[^\s>]+)/gi, '')
+        .replace(/\s(href|src)\s*=\s*(["'])\s*javascript:[\s\S]*?\2/gi, '')
+        .replace(/\s(href|src)\s*=\s*javascript:[^\s>]*/gi, '');
+}
+
+function sanitizePublicUrl(value) {
+    const raw = limitString(value, 500).trim();
+    if (!raw) return '';
+
+    try {
+        const parsed = new URL(raw);
+        if (parsed.protocol === 'http:' || parsed.protocol === 'https:') return parsed.toString();
+    } catch (e) {
+        return '';
+    }
+    return '';
+}
+
+function normalizeAdSlot(slot) {
+    const input = slot && typeof slot === 'object' ? slot : {};
+    return {
+        enabled: toBoolean(input.enabled),
+        html: stripUnsafeHtml(input.html || '', 5000)
+    };
+}
+
+function normalizeAds(ads) {
+    const input = ads && typeof ads === 'object' ? ads : {};
+    return AD_SLOTS.reduce((acc, slot) => {
+        acc[slot] = normalizeAdSlot(input[slot]);
+        return acc;
+    }, {});
+}
+
+function normalizeDonation(donation) {
+    const input = donation && typeof donation === 'object' ? donation : {};
+    const rawItems = Array.isArray(input.items) ? input.items : [];
+    const items = rawItems.slice(0, 8).map(item => {
+        const value = item && typeof item === 'object' ? item : {};
+        return {
+            coin: limitString(value.coin, 24).trim(),
+            network: limitString(value.network, 40).trim(),
+            address: limitString(value.address, 180).trim(),
+            url: sanitizePublicUrl(value.url)
+        };
+    }).filter(item => item.coin && item.address);
+
+    return {
+        enabled: toBoolean(input.enabled),
+        title: limitString(input.title, 80).trim(),
+        note: limitString(input.note, 240).trim(),
+        items
+    };
+}
+
+function normalizeConfig(config) {
+    const input = config && typeof config === 'object' ? config : {};
+    return {
+        ...DEFAULT_CONFIG,
+        ...input,
+        password: limitString(input.password || DEFAULT_CONFIG.password, 200),
+        map_provider: input.map_provider === 'google' ? 'google' : 'osm',
+        google_maps_key: limitString(input.google_maps_key, 300).trim(),
+        site_title: limitString(input.site_title, 80).trim(),
+        site_footer: stripUnsafeHtml(input.site_footer || '', 2000),
+        default_language: LANGS.has(input.default_language) ? input.default_language : DEFAULT_CONFIG.default_language,
+        ads: normalizeAds(input.ads),
+        donation: normalizeDonation(input.donation)
+    };
+}
 
 function readConfig() {
     try {
         if (!fs.existsSync(CONFIG_FILE)) {
             fs.writeFileSync(CONFIG_FILE, JSON.stringify(DEFAULT_CONFIG, null, 4), 'utf8');
-            return { ...DEFAULT_CONFIG };
+            return normalizeConfig(DEFAULT_CONFIG);
         }
         const raw = fs.readFileSync(CONFIG_FILE, 'utf8');
         const config = JSON.parse(raw);
-        return { ...DEFAULT_CONFIG, ...config };
+        return normalizeConfig(config);
     } catch (e) {
         console.error('Config read error:', e.message);
-        return { ...DEFAULT_CONFIG };
+        return normalizeConfig(DEFAULT_CONFIG);
     }
 }
 
 function writeConfig(config) {
     try {
-        fs.writeFileSync(CONFIG_FILE, JSON.stringify(config, null, 4), 'utf8');
+        fs.writeFileSync(CONFIG_FILE, JSON.stringify(normalizeConfig(config), null, 4), 'utf8');
         return true;
     } catch (e) {
         console.error('Config write error:', e.message);
@@ -86,7 +205,10 @@ function getPublicConfig(config) {
         map_provider: config.map_provider || 'osm',
         google_maps_key: config.google_maps_key || '',
         site_title: config.site_title || '',
-        site_footer: config.site_footer || ''
+        site_footer: config.site_footer || '',
+        default_language: LANGS.has(config.default_language) ? config.default_language : 'en',
+        ads: normalizeAds(config.ads),
+        donation: normalizeDonation(config.donation)
     };
 }
 
@@ -432,14 +554,25 @@ async function updateVersion() {
 }
 
 // ─── HTTP Helpers ───
-function sendJSON(res, statusCode, data) {
+function sendJSON(req, res, statusCode, data) {
     const body = JSON.stringify(data);
-    res.writeHead(statusCode, {
+    const origin = req && req.headers ? req.headers.origin : '';
+    const headers = {
         'Content-Type': 'application/json; charset=utf-8',
-        'Access-Control-Allow-Origin': '*',
         'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
         'Access-Control-Allow-Headers': 'Content-Type',
-        'Cache-Control': 'no-cache'
+        'Cache-Control': 'no-cache',
+        'X-Content-Type-Options': 'nosniff'
+    };
+    if (origin) {
+        try {
+            const originUrl = new URL(origin);
+            const host = req.headers.host || '';
+            if (originUrl.host === host) headers['Access-Control-Allow-Origin'] = origin;
+        } catch (e) { /* ignore invalid origin */ }
+    }
+    res.writeHead(statusCode, {
+        ...headers
     });
     res.end(body);
 }
@@ -447,8 +580,20 @@ function sendJSON(res, statusCode, data) {
 function readBody(req) {
     return new Promise((resolve, reject) => {
         let body = '';
-        req.on('data', chunk => { body += chunk; });
+        let tooLarge = false;
+        req.on('data', chunk => {
+            if (tooLarge) return;
+            body += chunk;
+            if (body.length > MAX_BODY_SIZE) {
+                tooLarge = true;
+                body = '';
+            }
+        });
         req.on('end', () => {
+            if (tooLarge) {
+                resolve({ __body_too_large: true });
+                return;
+            }
             try {
                 resolve(body ? JSON.parse(body) : {});
             } catch (e) {
@@ -465,13 +610,13 @@ async function handleAPI(req, res, parsedUrl) {
 
     // OPTIONS (CORS preflight)
     if (req.method === 'OPTIONS') {
-        return sendJSON(res, 204, null);
+        return sendJSON(req, res, 204, null);
     }
 
     // GET — Read public config (password excluded)
     if (req.method === 'GET' && !action) {
         const config = readConfig();
-        return sendJSON(res, 200, {
+        return sendJSON(req, res, 200, {
             status: 'ok',
             data: getPublicConfig(config)
         });
@@ -480,17 +625,24 @@ async function handleAPI(req, res, parsedUrl) {
     // POST requests
     if (req.method === 'POST') {
         const input = await readBody(req);
+        if (input.__body_too_large) {
+            return sendJSON(req, res, 413, {
+                status: 'error',
+                message: '请求内容过大'
+            });
+        }
 
         // ── Login: verify password ──
         if (action === 'login') {
             const config = readConfig();
             if (input.password === (config.password || 'admin')) {
-                return sendJSON(res, 200, {
+                return sendJSON(req, res, 200, {
                     status: 'ok',
+                    token: createSession(),
                     data: getPublicConfig(config)
                 });
             } else {
-                return sendJSON(res, 401, {
+                return sendJSON(req, res, 401, {
                     status: 'error',
                     message: '密码错误'
                 });
@@ -501,49 +653,50 @@ async function handleAPI(req, res, parsedUrl) {
         if (action === 'changepwd') {
             const config = readConfig();
             if (input.current_password !== (config.password || 'admin')) {
-                return sendJSON(res, 401, {
+                return sendJSON(req, res, 401, {
                     status: 'error',
                     message: '当前密码错误'
                 });
             }
             if (!input.new_password) {
-                return sendJSON(res, 400, {
+                return sendJSON(req, res, 400, {
                     status: 'error',
                     message: '新密码不能为空'
                 });
             }
             config.password = input.new_password;
             if (writeConfig(config)) {
-                return sendJSON(res, 200, { status: 'ok', message: '密码已更新' });
+                return sendJSON(req, res, 200, { status: 'ok', message: '密码已更新' });
             } else {
-                return sendJSON(res, 500, { status: 'error', message: '写入配置文件失败' });
+                return sendJSON(req, res, 500, { status: 'error', message: '写入配置文件失败' });
             }
         }
 
         // ── Save config ──
         if (action === 'save') {
             const config = readConfig();
-            if (input.password !== (config.password || 'admin')) {
-                return sendJSON(res, 401, {
+            if (!isAuthenticated(input, config)) {
+                return sendJSON(req, res, 401, {
                     status: 'error',
                     message: '认证失败'
                 });
             }
-            const allowed = ['map_provider', 'google_maps_key', 'site_title', 'site_footer'];
+            const allowed = ['map_provider', 'google_maps_key', 'site_title', 'site_footer', 'default_language', 'ads', 'donation'];
             const data = input.data || {};
             for (const field of allowed) {
                 if (field in data) {
                     config[field] = data[field];
                 }
             }
-            if (writeConfig(config)) {
-                return sendJSON(res, 200, {
+            const normalized = normalizeConfig(config);
+            if (writeConfig(normalized)) {
+                return sendJSON(req, res, 200, {
                     status: 'ok',
                     message: '配置已保存',
-                    data: getPublicConfig(config)
+                    data: getPublicConfig(normalized)
                 });
             } else {
-                return sendJSON(res, 500, {
+                return sendJSON(req, res, 500, {
                     status: 'error',
                     message: '写入配置文件失败'
                 });
@@ -553,8 +706,8 @@ async function handleAPI(req, res, parsedUrl) {
         // ── Version status/check/update ──
         if (action === 'version' || action === 'checkversion' || action === 'updateversion') {
             const config = readConfig();
-            if (input.password !== (config.password || 'admin')) {
-                return sendJSON(res, 401, {
+            if (!isAuthenticated(input, config)) {
+                return sendJSON(req, res, 401, {
                     status: 'error',
                     message: '认证失败'
                 });
@@ -562,7 +715,7 @@ async function handleAPI(req, res, parsedUrl) {
 
             if (action === 'updateversion') {
                 const result = await updateVersion();
-                return sendJSON(res, result.ok ? 200 : (result.statusCode || 500), {
+                return sendJSON(req, res, result.ok ? 200 : (result.statusCode || 500), {
                     status: result.ok ? 'ok' : 'error',
                     message: result.message,
                     data: result.data
@@ -570,7 +723,7 @@ async function handleAPI(req, res, parsedUrl) {
             }
 
             const data = await getVersionInfo({ fetch: action === 'checkversion' });
-            return sendJSON(res, 200, {
+            return sendJSON(req, res, 200, {
                 status: data.fetch_error ? 'error' : 'ok',
                 message: data.fetch_error ? `检查远端版本失败：${data.fetch_error}` : '',
                 data
@@ -578,13 +731,16 @@ async function handleAPI(req, res, parsedUrl) {
         }
     }
 
-    return sendJSON(res, 400, { status: 'error', message: '无效的请求' });
+    return sendJSON(req, res, 400, { status: 'error', message: '无效的请求' });
 }
 
 // ─── Static File Handler ───
 function serveStatic(req, res, filePath) {
-    // Block direct access to config.json
-    if (path.basename(filePath) === 'config.json') {
+    const rel = path.relative(ROOT, filePath);
+    const parts = rel.split(path.sep);
+
+    // Block direct access to runtime config and hidden/internal files.
+    if (path.basename(filePath) === 'config.json' || parts.some(part => part.startsWith('.'))) {
         res.writeHead(403, { 'Content-Type': 'text/plain' });
         return res.end('Forbidden');
     }
@@ -609,7 +765,18 @@ function serveStatic(req, res, filePath) {
 // ─── Server ───
 const server = http.createServer(async (req, res) => {
     const parsedUrl = url.parse(req.url);
-    let pathname = decodeURIComponent(parsedUrl.pathname);
+    let pathname;
+    try {
+        pathname = decodeURIComponent(parsedUrl.pathname);
+    } catch (e) {
+        res.writeHead(400, { 'Content-Type': 'text/plain' });
+        return res.end('Bad Request');
+    }
+
+    if (pathname.includes('\0')) {
+        res.writeHead(400, { 'Content-Type': 'text/plain' });
+        return res.end('Bad Request');
+    }
 
     // API route: /api or /api.php (compatible with PHP version)
     if (pathname === '/api' || pathname === '/api.php') {
@@ -620,8 +787,9 @@ const server = http.createServer(async (req, res) => {
     if (pathname === '/') pathname = '/index.html';
 
     // Security: prevent directory traversal
-    const filePath = path.join(ROOT, pathname);
-    if (!filePath.startsWith(ROOT)) {
+    const filePath = path.resolve(ROOT, `.${pathname}`);
+    const relativePath = path.relative(ROOT, filePath);
+    if (relativePath.startsWith('..') || path.isAbsolute(relativePath)) {
         res.writeHead(403, { 'Content-Type': 'text/plain' });
         return res.end('Forbidden');
     }

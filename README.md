@@ -1,6 +1,6 @@
 # IdentityGen — 随机身份信息生成器
 
-> 🌐 一键生成真实格式的美国（US）和英国（UK）个人身份信息，支持地图定位、一键复制、中英双语切换。
+> 🌐 一键生成真实格式的美国（US）和英国（UK）个人身份信息，支持地图定位、一键复制和多语言切换。
 
 [![GitHub](https://img.shields.io/badge/GitHub-logdns%2FIdentityGen-181717?style=flat&logo=github)](https://github.com/logdns/IdentityGen)
 ![HTML](https://img.shields.io/badge/HTML5-E34F26?style=flat&logo=html5&logoColor=white)
@@ -35,10 +35,13 @@
 - 🇬🇧 **英国身份生成** — 真实地区/城市、NI Number、邮编  
 - 🗺️ **地图定位** — 基于 Google Maps 嵌入显示真实地理位置
 - 📋 **一键复制** — 单项复制或批量复制全部信息
-- 🌐 **中英双语** — 界面支持中文/英文实时切换
+- 🌐 **多语言界面** — 默认英文，支持英文、简体中文、繁体中文、日文
 - ☀️🌙 **日夜主题** — 亮色/暗色主题自由切换，偏好自动保存
 - 📱 **响应式设计** — 完美适配手机、平板和桌面设备
 - 🔐 **后台管理** — 密码保护的管理面板，可配置地图服务、API Key、网站品牌
+- 📣 **广告位管理** — 后台配置前台顶部、信息区下方、底部广告位
+- ₿ **加密币捐赠** — 后台配置前台底部捐赠地址，支持一键复制
+- 🌐 **多语言选择** — 默认英文，支持英文、简体中文、繁体中文、日文
 - ⬆️ **后台更新** — 后台检查 GitHub 版本并执行安全更新
 - 🎨 **高级 UI** — Glassmorphism 设计、粒子动画背景、微交互动效
 - 🔄 **真实地址** — 通过 OpenStreetMap Nominatim API 获取真实地址数据
@@ -123,7 +126,12 @@ PORT=8080 node server.js
 | Google Maps API Key | 使用 Google Maps Embed API 时需要 | 无（使用基础嵌入）|
 | 网站标题 | 自定义 Logo 文字 | `IdentityGen` |
 | 页脚文字 | 自定义页脚内容（支持 HTML） | `© 2026 IdentityGen` |
+| 默认语言 | 前台默认显示语言 | English |
+| 广告位 | 顶部、信息区下方、地图下方广告 HTML | 关闭 |
+| 加密币捐赠 | 前台底部捐赠地址列表 | 关闭 |
 | 系统版本 | 检查远端版本、执行安全更新 | 当前 Git 版本 |
+
+广告位和页脚支持有限 HTML。系统会过滤脚本、事件属性和不安全链接；捐赠地址以纯文本显示并支持复制。
 
 ### 获取 Google Maps API Key
 
@@ -145,7 +153,7 @@ PORT=8080 node server.js
 
 自动更新不会覆盖本地未提交修改。若服务器代码有改动、本地分支有自定义提交或与远端分叉，后台会拒绝更新，并提示手动处理 Git 状态。
 
-更新完成后，如果服务端代码发生变化，请重启 Node.js 服务：
+更新成功后，后台页面会自动刷新当前页面。若服务端代码发生变化，请同时重启 Node.js 服务：
 
 ```bash
 pm2 restart identitygen
@@ -180,6 +188,7 @@ admin.html
 style.css
 app.js
 data.js
+config.example.json
 ```
 
 > 💡 `config.json` 无需手动创建，首次启动 `server.js` 时自动生成默认配置。如需手动预配置，可参考 `config.example.json` 创建。
@@ -282,11 +291,13 @@ sudo certbot --nginx -d your-domain.com
 5. 选择以下文件上传：
    ```
    server.js
+   VERSION
    index.html
    admin.html
    style.css
    app.js
    data.js
+   config.example.json
    ```
    > 💡 `config.json` 无需上传，首次启动 Node.js 服务时会自动创建。
 6. 等待上传完成
@@ -295,7 +306,7 @@ sudo certbot --nginx -d your-domain.com
 
 ```bash
 # 使用 scp 命令
-scp server.js index.html admin.html style.css app.js data.js root@你的服务器IP:/www/wwwroot/id.example.com/
+scp server.js VERSION index.html admin.html style.css app.js data.js config.example.json root@你的服务器IP:/www/wwwroot/id.example.com/
 
 # 或使用 FileZilla 等 SFTP 工具连接上传
 ```
@@ -377,7 +388,7 @@ location / {
 
 ## 🔄 旧版本迁移
 
-旧版本没有后台更新入口，首次迁移到 `v1.1.0` 需要在服务器命令行执行一次手动更新：
+旧版本没有后台更新入口，首次迁移到新版需要在服务器命令行执行一次手动更新：
 
 ```bash
 cd /www/wwwroot/identitygen
@@ -385,7 +396,7 @@ git pull --ff-only origin main
 pm2 restart identitygen
 ```
 
-迁移前请确认 `config.json` 没有被 Git 跟踪，避免后台密码、API Key 和网站定制配置被覆盖。完整步骤见 [旧版本迁移指南](docs/MIGRATION.md)。
+迁移前请确认 `config.json` 没有被 Git 跟踪，避免后台密码、API Key、网站定制、广告位和捐赠配置被覆盖。完整步骤见 [旧版本迁移指南](docs/MIGRATION.md)。
 
 ---
 
@@ -422,7 +433,7 @@ pm2 restart identitygen
 **A:** 需要 Node.js 环境。项目自带一个零依赖的 `server.js`，同时提供静态文件服务和配置管理 API。只需 `node server.js` 一条命令即可启动，无需 `npm install`。如无 Node.js 环境，也可直接手动编辑 `config.json` 文件配置。
 
 ### Q: 数据存储在哪里？
-**A:** 后台配置（密码、API Key、地图服务商、网站标题、页脚）存储在服务端的 `config.json` 文件中（首次运行自动创建，不纳入版本控制），管理员在后台修改后所有用户立即生效。主题偏好（亮色/暗色）作为用户个人设置仍存储在浏览器 `localStorage` 中。
+**A:** 后台配置（密码、API Key、地图服务商、网站标题、页脚、默认语言、广告位、捐赠地址）存储在服务端的 `config.json` 文件中（首次运行自动创建，不纳入版本控制），管理员在后台修改后所有用户立即生效。主题偏好（亮色/暗色）和用户手动选择的语言仍存储在浏览器 `localStorage` 中。
 
 ### Q: 默认管理密码是什么？
 **A:** 默认密码为 `admin`，首次登录后请立即修改。

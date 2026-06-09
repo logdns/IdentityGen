@@ -3,7 +3,7 @@
 // ═══════════════════════════════════════════════
 
 let currentCountry = 'us';
-let currentLang = 'zh';
+let currentLang = localStorage.getItem('idgen_lang') || 'en';
 let currentIdentity = {};
 let currentTheme = localStorage.getItem('idgen_theme') || 'light';
 
@@ -11,26 +11,18 @@ const $ = id => document.getElementById(id);
 const pick = arr => arr[Math.floor(Math.random() * arr.length)];
 const randInt = (min, max) => Math.floor(Math.random() * (max - min + 1)) + min;
 
-// Server-side config (loaded from api.php / config.json)
+// Server-side config (loaded from API only)
 let serverConfig = {};
 
 async function loadServerConfig() {
-    // Try API endpoints in order: /api (Node.js) → /api.php (PHP) → /config.json (static)
-    const endpoints = ['api', 'api.php', 'config.json'];
+    // Try API endpoints in order: /api (Node.js) → /api.php (PHP)
+    const endpoints = ['api', 'api.php'];
     for (const ep of endpoints) {
         try {
             const resp = await fetch(ep);
             if (!resp.ok) continue;
             const json = await resp.json();
-            if (ep === 'config.json') {
-                // Direct JSON file — extract public fields
-                serverConfig = {
-                    map_provider: json.map_provider || 'osm',
-                    google_maps_key: json.google_maps_key || '',
-                    site_title: json.site_title || '',
-                    site_footer: json.site_footer || ''
-                };
-            } else if (json.status === 'ok' && json.data) {
+            if (json.status === 'ok' && json.data) {
                 serverConfig = json.data;
             } else {
                 continue;
@@ -45,11 +37,69 @@ async function loadServerConfig() {
 // Get config value — reads from serverConfig (server-side)
 const gc = k => serverConfig[k] || '';
 
+function isSafeLinkUrl(value) {
+    try {
+        const parsed = new URL(value, window.location.origin);
+        return parsed.protocol === 'http:' || parsed.protocol === 'https:' || parsed.protocol === 'mailto:';
+    } catch (e) {
+        return false;
+    }
+}
+
+function isSafeAssetUrl(value) {
+    try {
+        const parsed = new URL(value, window.location.origin);
+        return parsed.protocol === 'http:' || parsed.protocol === 'https:';
+    } catch (e) {
+        return false;
+    }
+}
+
+function sanitizeHTML(html) {
+    const tpl = document.createElement('template');
+    tpl.innerHTML = String(html || '');
+    const allowedTags = new Set(['A', 'B', 'BR', 'CODE', 'DIV', 'EM', 'I', 'IMG', 'P', 'SPAN', 'STRONG', 'SMALL']);
+    const allowedAttrs = {
+        A: new Set(['href', 'title', 'target', 'rel']),
+        IMG: new Set(['src', 'alt', 'title', 'width', 'height']),
+        DIV: new Set(['class']),
+        SPAN: new Set(['class']),
+        P: new Set(['class'])
+    };
+
+    tpl.content.querySelectorAll('*').forEach(node => {
+        if (!allowedTags.has(node.tagName)) {
+            node.replaceWith(document.createTextNode(node.textContent || ''));
+            return;
+        }
+
+        [...node.attributes].forEach(attr => {
+            const allowed = allowedAttrs[node.tagName] && allowedAttrs[node.tagName].has(attr.name);
+            if (!allowed || attr.name.toLowerCase().startsWith('on')) {
+                node.removeAttribute(attr.name);
+                return;
+            }
+            if (attr.name === 'href' && !isSafeLinkUrl(attr.value)) {
+                node.removeAttribute(attr.name);
+            }
+            if (attr.name === 'src' && !isSafeAssetUrl(attr.value)) {
+                node.removeAttribute(attr.name);
+            }
+        });
+
+        if (node.tagName === 'A') {
+            node.setAttribute('rel', 'noopener noreferrer');
+        }
+    });
+
+    return tpl.innerHTML;
+}
+
 // ═══════════════════════════════════════════════
 // i18n
 // ═══════════════════════════════════════════════
 const I18N = {
-    zh: {
+    'zh-CN': {
         nav_us: '美国', nav_uk: '英国',
         hero_badge: '🔥 实时数据驱动',
         hero_title: '随机身份信息生成器',
@@ -72,9 +122,42 @@ const I18N = {
         map_note_osm: '',
         map_note_google: '',
         api_error: '⚠️ 数据请求失败，使用本地数据',
-        lang_switch: 'EN',
         theme_light: '☀️',
         theme_dark: '🌙',
+        donation_title: '支持 IdentityGen',
+        donation_note: '感谢你的捐赠支持。',
+        donation_copy: '复制',
+        donation_copied: '✅ 地址已复制',
+    },
+    'zh-TW': {
+        nav_us: '美國', nav_uk: '英國',
+        hero_badge: '🔥 即時資料驅動',
+        hero_title: '隨機身分資訊產生器',
+        hero_sub: '一鍵產生真實格式的美國和英國個人資訊，支援地址、電話、Email 等',
+        select_label: '選擇地區', generate_btn: '產生新身分',
+        loading_text: '正在取得真實地址資料...',
+        label_name: '姓名', label_gender: '性別', label_dob: '出生日期',
+        label_phone: '電話號碼', label_email: '電子郵件',
+        label_street: '街道地址', label_city: '城市',
+        label_state_us: '州', label_zip_us: '郵遞區號', label_ssn_us: '社會安全號碼',
+        label_state_uk: '地區', label_zip_uk: '郵遞區號', label_ssn_uk: '國民保險號碼',
+        label_fulladdr: '完整地址', label_website: '個人網站',
+        click_copy: '點擊複製', copy_all: '複製全部資訊',
+        map_title: '📍 地圖定位',
+        footer: '© 2026 IdentityGen · by <a href="https://github.com/logdns/IdentityGen" target="_blank">github.com/logdns/IdentityGen</a>',
+        toast_copied: '✅ 已複製', toast_all: '✅ 全部資訊已複製',
+        random_state: '🎲 隨機選擇', random_region: '🎲 隨機選擇',
+        gender_male: '男', gender_female: '女', gender_other: '其他',
+        copied_label: '已複製!',
+        map_note_osm: '',
+        map_note_google: '',
+        api_error: '⚠️ 資料請求失敗，使用本機資料',
+        theme_light: '☀️',
+        theme_dark: '🌙',
+        donation_title: '支持 IdentityGen',
+        donation_note: '感謝你的捐贈支持。',
+        donation_copy: '複製',
+        donation_copied: '✅ 地址已複製',
     },
     en: {
         nav_us: 'US', nav_uk: 'UK',
@@ -99,13 +182,51 @@ const I18N = {
         map_note_osm: '',
         map_note_google: '',
         api_error: '⚠️ Data request failed, using local data',
-        lang_switch: '中文',
         theme_light: '☀️',
         theme_dark: '🌙',
-    }
+        donation_title: 'Support IdentityGen',
+        donation_note: 'Thank you for supporting this project.',
+        donation_copy: 'Copy',
+        donation_copied: '✅ Address copied',
+    },
+    ja: {
+        nav_us: 'US', nav_uk: 'UK',
+        hero_badge: '🔥 リアルタイムデータ駆動',
+        hero_title: 'ランダム身元情報ジェネレーター',
+        hero_sub: '米国・英国形式の個人情報、住所、電話番号、メールなどを生成',
+        select_label: '地域', generate_btn: '新しく生成',
+        loading_text: '実在形式の住所データを取得中...',
+        label_name: '氏名', label_gender: '性別', label_dob: '生年月日',
+        label_phone: '電話番号', label_email: 'メール',
+        label_street: '住所', label_city: '市区町村',
+        label_state_us: '州', label_zip_us: '郵便番号', label_ssn_us: 'SSN',
+        label_state_uk: '地域', label_zip_uk: '郵便番号', label_ssn_uk: 'NI 番号',
+        label_fulladdr: '完全な住所', label_website: 'ウェブサイト',
+        click_copy: 'コピー', copy_all: 'すべてコピー',
+        map_title: '📍 地図',
+        footer: '© 2026 IdentityGen · by <a href="https://github.com/logdns/IdentityGen" target="_blank">github.com/logdns/IdentityGen</a>',
+        toast_copied: '✅ コピーしました', toast_all: '✅ すべてコピーしました',
+        random_state: '🎲 ランダム', random_region: '🎲 ランダム',
+        gender_male: '男性', gender_female: '女性', gender_other: 'その他',
+        copied_label: 'コピー済み!',
+        map_note_osm: '',
+        map_note_google: '',
+        api_error: '⚠️ データ取得に失敗したためローカルデータを使用します',
+        theme_light: '☀️',
+        theme_dark: '🌙',
+        donation_title: 'IdentityGen を支援',
+        donation_note: 'プロジェクト支援ありがとうございます。',
+        donation_copy: 'コピー',
+        donation_copied: '✅ アドレスをコピーしました',
+    },
 };
 
-function t(key) { return I18N[currentLang][key] || key; }
+function normalizeLang(lang) {
+    if (lang === 'zh') return 'zh-CN';
+    return I18N[lang] ? lang : 'en';
+}
+
+function t(key) { return (I18N[currentLang] && I18N[currentLang][key]) || I18N.en[key] || key; }
 
 function applyI18n() {
     const sfx = currentCountry === 'uk' ? '_uk' : '_us';
@@ -114,30 +235,100 @@ function applyI18n() {
         if (k === 'label_state') { el.textContent = t('label_state' + sfx); return; }
         if (k === 'label_zip') { el.textContent = t('label_zip' + sfx); return; }
         if (k === 'label_ssn') { el.textContent = t('label_ssn' + sfx); return; }
-        if (k === 'footer') { el.innerHTML = t(k); return; }
-        const v = I18N[currentLang][k];
+        if (k === 'footer') { el.innerHTML = sanitizeHTML(t(k)); return; }
+        const v = (I18N[currentLang] || I18N.en)[k];
         if (v) el.textContent = v;
     });
 
-    // Lang toggle — show what you'll switch TO
-    $('lang-text').textContent = t('lang_switch');
-    document.documentElement.lang = currentLang === 'zh' ? 'zh-CN' : 'en';
+    const langSelect = $('lang-select');
+    if (langSelect) langSelect.value = currentLang;
+    document.documentElement.lang = currentLang;
 
     // Map note
     const prov = gc('map_provider') || 'osm';
     const noteKey = (prov === 'google' && gc('google_maps_key')) ? 'map_note_google' : 'map_note_osm';
-    $('map-note').innerHTML = t(noteKey);
+    $('map-note').textContent = t(noteKey);
 
     // Custom branding
     const ct = gc('site_title'); if (ct) $('site-logo').textContent = ct;
-    const cf = gc('site_footer'); if (cf) $('footer-text').innerHTML = cf;
+    const cf = gc('site_footer'); if (cf) $('footer-text').innerHTML = sanitizeHTML(cf);
+    renderAds();
+    renderDonation();
 }
 
-function toggleLang() {
-    currentLang = currentLang === 'zh' ? 'en' : 'zh';
+function setLang(lang) {
+    currentLang = normalizeLang(lang);
+    localStorage.setItem('idgen_lang', currentLang);
     applyI18n();
     populateSelect();
     if (currentIdentity.name) renderIdentity();
+}
+
+function renderAds() {
+    const ads = serverConfig.ads || {};
+    ['top', 'inline', 'footer'].forEach(slot => {
+        const el = $(`ad-${slot}`);
+        if (!el) return;
+        const cfg = ads[slot] || {};
+        if (cfg.enabled && cfg.html) {
+            el.innerHTML = sanitizeHTML(cfg.html);
+            el.hidden = false;
+        } else {
+            el.innerHTML = '';
+            el.hidden = true;
+        }
+    });
+}
+
+function renderDonation() {
+    const cfg = serverConfig.donation || {};
+    const section = $('donation-section');
+    const list = $('donation-list');
+    if (!section || !list) return;
+
+    const items = Array.isArray(cfg.items) ? cfg.items.filter(item => item.coin && item.address) : [];
+    if (!cfg.enabled || !items.length) {
+        section.hidden = true;
+        list.innerHTML = '';
+        return;
+    }
+
+    $('donation-title').textContent = cfg.title || t('donation_title');
+    $('donation-note').textContent = cfg.note || t('donation_note');
+    list.innerHTML = '';
+    items.forEach(item => {
+        const row = document.createElement('div');
+        row.className = 'donation-item';
+        const meta = document.createElement('div');
+        const coin = document.createElement('span');
+        coin.className = 'donation-coin';
+        coin.textContent = item.coin;
+        const network = document.createElement('span');
+        network.className = 'donation-network';
+        network.textContent = item.network || '';
+        meta.append(coin, network);
+
+        const address = document.createElement(item.url && isSafeLinkUrl(item.url) ? 'a' : 'div');
+        address.className = 'donation-address';
+        address.textContent = item.address;
+        if (address.tagName === 'A') {
+            address.href = item.url;
+            address.target = '_blank';
+            address.rel = 'noopener noreferrer';
+        }
+
+        const btn = document.createElement('button');
+        btn.type = 'button';
+        btn.className = 'donation-copy';
+        btn.textContent = t('donation_copy');
+        btn.addEventListener('click', () => {
+            navigator.clipboard.writeText(item.address).then(() => showToast(t('donation_copied')));
+        });
+
+        row.append(meta, address, btn);
+        list.appendChild(row);
+    });
+    section.hidden = false;
 }
 
 // ═══════════════════════════════════════
@@ -167,6 +358,10 @@ document.addEventListener('DOMContentLoaded', async () => {
     setupCountryNav();
     // Load server config before applying i18n and generating identity
     await loadServerConfig();
+    currentLang = normalizeLang(currentLang);
+    if (!localStorage.getItem('idgen_lang')) {
+        currentLang = normalizeLang(serverConfig.default_language);
+    }
     applyI18n();
     populateSelect();
     generateIdentity();

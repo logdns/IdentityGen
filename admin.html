@@ -391,6 +391,53 @@
             letter-spacing: 0.02em;
         }
 
+        .field-input.textarea {
+            min-height: 86px;
+            resize: vertical;
+            text-align: left;
+            letter-spacing: 0;
+        }
+
+        .field-input.select {
+            text-align: left;
+            letter-spacing: 0;
+        }
+
+        .inline-check {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            color: var(--text-dim);
+            font-size: 0.88em;
+            cursor: pointer;
+        }
+
+        .inline-check input {
+            width: 16px;
+            height: 16px;
+            accent-color: var(--accent);
+        }
+
+        .donation-admin-list {
+            display: grid;
+            gap: 10px;
+            margin-top: 10px;
+        }
+
+        .donation-admin-row {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 10px;
+            padding: 12px;
+            border: 1px solid var(--border);
+            border-radius: var(--radius-sm);
+            background: var(--surface-2);
+        }
+
+        .donation-admin-row .full {
+            grid-column: 1 / -1;
+        }
+
         .btn-save {
             padding: 10px 22px;
             border-radius: var(--radius-xs);
@@ -619,6 +666,14 @@
                 grid-template-columns: 1fr;
                 gap: 4px;
             }
+
+            .donation-admin-row {
+                grid-template-columns: 1fr;
+            }
+
+            .donation-admin-row .full {
+                grid-column: auto;
+            }
         }
 
         /* Theme toggle */
@@ -700,7 +755,7 @@
             </div>
             <p class="section-desc">
                 选择地图服务商。Google Maps 需要 API Key。
-                <a href="https://developers.google.com/maps/documentation/embed/get-api-key" target="_blank">获取 Google
+                <a href="https://developers.google.com/maps/documentation/embed/get-api-key" target="_blank" rel="noopener noreferrer">获取 Google
                     Maps API Key →</a><br>
                 无 API Key 时将使用 Google Maps 基础嵌入模式（功能受限）。
             </p>
@@ -743,7 +798,7 @@
             <div class="section-header"><span class="section-icon">🔗</span><span class="section-title">FakerAPI
                     设置</span></div>
             <p class="section-desc">
-                身份数据来自 <a href="https://fakerapi.it" target="_blank">FakerAPI.it</a> —— 免费、无需注册、无需 API Key。<br>
+                身份数据来自 <a href="https://fakerapi.it" target="_blank" rel="noopener noreferrer">FakerAPI.it</a> —— 免费、无需注册、无需 API Key。<br>
                 如 API 不可用，系统将自动回退到本地随机数据生成。
             </p>
             <div class="field">
@@ -774,7 +829,75 @@
             </div>
         </div>
 
-        <!-- 5. Version -->
+        <!-- 5. Frontend Settings -->
+        <div class="section-card">
+            <div class="section-header"><span class="section-icon">🌐</span><span class="section-title">前台语言</span>
+            </div>
+            <p class="section-desc">设置前台默认语言。用户仍可在前台右上角切换语言。</p>
+            <div class="field">
+                <div class="field-label">默认语言</div>
+                <div class="field-row">
+                    <select class="field-input select" id="default-language">
+                        <option value="en">English</option>
+                        <option value="zh-CN">简体中文</option>
+                        <option value="zh-TW">繁體中文</option>
+                        <option value="ja">日本語</option>
+                    </select>
+                    <button class="btn-save" onclick="saveLanguage()">保存</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- 6. Ads -->
+        <div class="section-card">
+            <div class="section-header"><span class="section-icon">📣</span><span class="section-title">广告位管理</span>
+            </div>
+            <p class="section-desc">预留前台顶部、信息区下方、地图下方三个广告位。内容支持有限 HTML，脚本和事件属性会被过滤。</p>
+            <div class="field">
+                <label class="inline-check"><input type="checkbox" id="ad-top-enabled"> 启用顶部广告位</label>
+                <textarea class="field-input textarea" id="ad-top-html"
+                    placeholder="例如：&lt;a href='https://example.com' target='_blank'&gt;Sponsored Link&lt;/a&gt;"></textarea>
+            </div>
+            <div class="field">
+                <label class="inline-check"><input type="checkbox" id="ad-inline-enabled"> 启用信息区下方广告位</label>
+                <textarea class="field-input textarea" id="ad-inline-html" placeholder="广告 HTML"></textarea>
+            </div>
+            <div class="field">
+                <label class="inline-check"><input type="checkbox" id="ad-footer-enabled"> 启用地图下方广告位</label>
+                <textarea class="field-input textarea" id="ad-footer-html" placeholder="广告 HTML"></textarea>
+            </div>
+            <div class="field">
+                <button class="btn-save" onclick="saveAds()">保存广告位</button>
+            </div>
+        </div>
+
+        <!-- 7. Donations -->
+        <div class="section-card">
+            <div class="section-header"><span class="section-icon">₿</span><span class="section-title">加密币捐赠</span>
+            </div>
+            <p class="section-desc">在前台底部显示加密币捐赠地址。最多 8 条，地址会以纯文本显示并支持一键复制。</p>
+            <div class="field">
+                <label class="inline-check"><input type="checkbox" id="donation-enabled"> 启用捐赠区域</label>
+            </div>
+            <div class="field">
+                <div class="field-label">标题</div>
+                <input class="field-input" type="text" id="donation-title" placeholder="Support IdentityGen">
+            </div>
+            <div class="field">
+                <div class="field-label">说明</div>
+                <input class="field-input" type="text" id="donation-note" placeholder="Thank you for supporting this project.">
+            </div>
+            <div class="field">
+                <div class="field-label">地址列表</div>
+                <div class="donation-admin-list" id="donation-admin-list"></div>
+                <button class="btn-save" onclick="addDonationRow()" style="margin-top:10px;">添加地址</button>
+            </div>
+            <div class="field">
+                <button class="btn-save" onclick="saveDonation()">保存捐赠设置</button>
+            </div>
+        </div>
+
+        <!-- 8. Version -->
         <div class="section-card">
             <div class="section-header"><span class="section-icon">⬆️</span><span class="section-title">系统版本</span>
             </div>
@@ -804,6 +927,7 @@
     <script>
         // Session state
         let sessionPassword = '';
+        let sessionToken = '';
         let currentConfig = {};
 
         // ── API helpers ──
@@ -842,6 +966,18 @@
             }
         }
 
+        function setStatus(el, type, message) {
+            el.textContent = '';
+            const box = document.createElement('div');
+            box.className = `status ${type}`;
+            const dot = document.createElement('span');
+            dot.className = 'status-dot';
+            const text = document.createElement('span');
+            text.textContent = String(message == null ? '' : message);
+            box.append(dot, text);
+            el.appendChild(box);
+        }
+
         // ── Login ──
         async function doLogin() {
             const pwd = document.getElementById('pwd-input').value;
@@ -851,6 +987,7 @@
             const result = await apiPost('login', { password: pwd });
             if (result.status === 'ok') {
                 sessionPassword = pwd;
+                sessionToken = result.token || '';
                 currentConfig = result.data || {};
                 document.getElementById('login-screen').classList.add('hidden');
                 document.getElementById('admin-panel').classList.remove('hidden');
@@ -894,7 +1031,7 @@
 
         async function saveMapProvider() {
             const result = await apiPost('save', {
-                password: sessionPassword,
+                token: sessionToken,
                 data: {
                     map_provider: currentConfig.map_provider || 'osm'
                 }
@@ -915,7 +1052,7 @@
             currentConfig.map_provider = 'google';
 
             const result = await apiPost('save', {
-                password: sessionPassword,
+                token: sessionToken,
                 data: {
                     map_provider: 'google',
                     google_maps_key: k
@@ -936,7 +1073,7 @@
             document.getElementById('api-key').value = '';
 
             const result = await apiPost('save', {
-                password: sessionPassword,
+                token: sessionToken,
                 data: {
                     map_provider: currentConfig.map_provider || 'osm',
                     google_maps_key: ''
@@ -956,26 +1093,26 @@
             const k = currentConfig.google_maps_key;
             const el = document.getElementById('key-status');
             if (k) {
-                el.innerHTML = `<div class="status ok"><span class="status-dot"></span> 已配置: <code>${k.slice(0, 10)}...${k.slice(-4)}</code></div>`;
+                setStatus(el, 'ok', `已配置: ${k.slice(0, 10)}...${k.slice(-4)}`);
             } else {
-                el.innerHTML = `<div class="status warn"><span class="status-dot"></span> 未配置 API Key</div>`;
+                setStatus(el, 'warn', '未配置 API Key');
             }
         }
 
         // ── FakerAPI Test ──
         async function testAPI() {
             const el = document.getElementById('api-status');
-            el.innerHTML = '<div class="status info"><span class="status-dot"></span> 正在测试...</div>';
+            setStatus(el, 'info', '正在测试...');
             try {
                 const r = await fetch('https://fakerapi.it/api/v2/persons?_quantity=1&_locale=en_US');
                 const j = await r.json();
                 if (j.status === 'OK') {
-                    el.innerHTML = `<div class="status ok"><span class="status-dot"></span> ✅ FakerAPI 连接正常 — 返回数据: ${j.data[0].firstname} ${j.data[0].lastname}</div>`;
+                    setStatus(el, 'ok', `✅ FakerAPI 连接正常 - 返回数据: ${j.data[0].firstname} ${j.data[0].lastname}`);
                 } else {
-                    el.innerHTML = '<div class="status warn"><span class="status-dot"></span> ⚠️ API 返回异常</div>';
+                    setStatus(el, 'warn', '⚠️ API 返回异常');
                 }
             } catch (e) {
-                el.innerHTML = '<div class="status warn"><span class="status-dot"></span> ❌ 连接失败，将使用本地数据</div>';
+                setStatus(el, 'warn', '❌ 连接失败，将使用本地数据');
             }
         }
 
@@ -985,7 +1122,7 @@
             const f = document.getElementById('site-footer').value.trim();
 
             const result = await apiPost('save', {
-                password: sessionPassword,
+                token: sessionToken,
                 data: {
                     site_title: t,
                     site_footer: f,
@@ -1001,10 +1138,115 @@
             }
         }
 
+        async function saveLanguage() {
+            const lang = document.getElementById('default-language').value;
+            const result = await apiPost('save', {
+                token: sessionToken,
+                data: { default_language: lang }
+            });
+
+            if (result.status === 'ok') {
+                currentConfig = result.data || currentConfig;
+                toast('✅ 默认语言已保存');
+            } else {
+                toast(result.message || '保存失败', 'error');
+            }
+        }
+
+        function readAdsForm() {
+            const ads = {};
+            ['top', 'inline', 'footer'].forEach(slot => {
+                ads[slot] = {
+                    enabled: document.getElementById(`ad-${slot}-enabled`).checked,
+                    html: document.getElementById(`ad-${slot}-html`).value
+                };
+            });
+            return ads;
+        }
+
+        async function saveAds() {
+            const result = await apiPost('save', {
+                token: sessionToken,
+                data: { ads: readAdsForm() }
+            });
+
+            if (result.status === 'ok') {
+                currentConfig = result.data || currentConfig;
+                toast('✅ 广告位已保存');
+            } else {
+                toast(result.message || '保存失败', 'error');
+            }
+        }
+
+        function donationRowTemplate(item) {
+            const data = item || {};
+            const row = document.createElement('div');
+            row.className = 'donation-admin-row';
+
+            const fields = [
+                ['field-input donation-coin', 'BTC', data.coin || ''],
+                ['field-input donation-network', 'Bitcoin / ERC20 / TRC20', data.network || ''],
+                ['field-input mono donation-address full', 'Wallet address', data.address || ''],
+                ['field-input donation-url', 'Optional link, https://...', data.url || '']
+            ];
+
+            fields.forEach(([className, placeholder, value]) => {
+                const input = document.createElement('input');
+                input.className = className;
+                input.type = 'text';
+                input.placeholder = placeholder;
+                input.value = value;
+                row.appendChild(input);
+            });
+
+            const remove = document.createElement('button');
+            remove.className = 'btn-danger';
+            remove.type = 'button';
+            remove.textContent = '删除';
+            remove.addEventListener('click', () => row.remove());
+            row.appendChild(remove);
+            return row;
+        }
+
+        function addDonationRow(item) {
+            const list = document.getElementById('donation-admin-list');
+            if (list.children.length >= 8) return toast('最多添加 8 条地址', 'error');
+            list.appendChild(donationRowTemplate(item || {}));
+        }
+
+        function readDonationForm() {
+            const rows = [...document.querySelectorAll('.donation-admin-row')];
+            return {
+                enabled: document.getElementById('donation-enabled').checked,
+                title: document.getElementById('donation-title').value,
+                note: document.getElementById('donation-note').value,
+                items: rows.map(row => ({
+                    coin: row.querySelector('.donation-coin').value,
+                    network: row.querySelector('.donation-network').value,
+                    address: row.querySelector('.donation-address').value,
+                    url: row.querySelector('.donation-url').value
+                })).filter(item => item.coin.trim() && item.address.trim())
+            };
+        }
+
+        async function saveDonation() {
+            const result = await apiPost('save', {
+                token: sessionToken,
+                data: { donation: readDonationForm() }
+            });
+
+            if (result.status === 'ok') {
+                currentConfig = result.data || currentConfig;
+                loadConfigUI();
+                toast('✅ 捐赠设置已保存');
+            } else {
+                toast(result.message || '保存失败', 'error');
+            }
+        }
+
         // ── Version ──
         function setVersionLoading(message) {
-            document.getElementById('version-status').innerHTML =
-                `<div class="status info"><span class="status-dot"></span> ${message}</div>`;
+            setStatus(document.getElementById('version-status'), 'info', message);
         }
 
         function formatDate(value) {
@@ -1032,7 +1274,7 @@
             const remoteEl = document.getElementById('version-remote');
 
             if (!data) {
-                statusEl.innerHTML = `<div class="status warn"><span class="status-dot"></span> ${message || '无法读取版本信息'}</div>`;
+                setStatus(statusEl, 'warn', message || '无法读取版本信息');
                 updateBtn.style.display = 'none';
                 return;
             }
@@ -1044,11 +1286,11 @@
 
             if (!data.git_available) {
                 if (data.latest_version && data.version_update_available) {
-                    statusEl.innerHTML = `<div class="status info"><span class="status-dot"></span> 发现新版本 ${data.latest_version}，当前为非 Git 部署，需按迁移文档手动升级</div>`;
+                    setStatus(statusEl, 'info', `发现新版本 ${data.latest_version}，当前为非 Git 部署，需按迁移文档手动升级`);
                 } else if (data.latest_version) {
-                    statusEl.innerHTML = `<div class="status ok"><span class="status-dot"></span> 当前版本已是最新；非 Git 部署不支持后台自动更新</div>`;
+                    setStatus(statusEl, 'ok', '当前版本已是最新；非 Git 部署不支持后台自动更新');
                 } else {
-                    statusEl.innerHTML = `<div class="status warn"><span class="status-dot"></span> ${message || data.message || '当前目录不是 Git 仓库，无法自动更新'}</div>`;
+                    setStatus(statusEl, 'warn', message || data.message || '当前目录不是 Git 仓库，无法自动更新');
                     latestEl.textContent = '需要 Git 部署后检查';
                 }
                 branchEl.textContent = '非 Git 部署';
@@ -1057,35 +1299,35 @@
             }
 
             if (data.fetch_error) {
-                statusEl.innerHTML = `<div class="status warn"><span class="status-dot"></span> 检查远端失败：${data.fetch_error}</div>`;
+                setStatus(statusEl, 'warn', `检查远端失败：${data.fetch_error}`);
                 updateBtn.style.display = 'none';
                 return;
             }
 
             if (data.state === 'outdated') {
                 const versionText = data.latest_version ? ` ${data.latest_version}` : '';
-                statusEl.innerHTML = `<div class="status info"><span class="status-dot"></span> 发现新版本${versionText}：落后远端 ${data.behind} 个提交</div>`;
+                setStatus(statusEl, 'info', `发现新版本${versionText}：落后远端 ${data.behind} 个提交`);
                 updateBtn.style.display = 'inline-flex';
                 return;
             }
 
             updateBtn.style.display = 'none';
             if (data.state === 'up_to_date') {
-                statusEl.innerHTML = `<div class="status ok"><span class="status-dot"></span> 当前已是最新版本</div>`;
+                setStatus(statusEl, 'ok', '当前已是最新版本');
             } else if (data.state === 'ahead') {
-                statusEl.innerHTML = `<div class="status info"><span class="status-dot"></span> 当前版本包含 ${data.ahead} 个本地提交，远端没有更新</div>`;
+                setStatus(statusEl, 'info', `当前版本包含 ${data.ahead} 个本地提交，远端没有更新`);
             } else if (data.state === 'diverged') {
-                statusEl.innerHTML = `<div class="status warn"><span class="status-dot"></span> 本地与远端分叉，请手动处理 Git 状态</div>`;
+                setStatus(statusEl, 'warn', '本地与远端分叉，请手动处理 Git 状态');
             } else if (data.state === 'no_remote') {
-                statusEl.innerHTML = `<div class="status warn"><span class="status-dot"></span> 未找到远端分支，无法自动检查更新</div>`;
+                setStatus(statusEl, 'warn', '未找到远端分支，无法自动检查更新');
             } else {
-                statusEl.innerHTML = `<div class="status info"><span class="status-dot"></span> ${message || '版本信息已读取'}</div>`;
+                setStatus(statusEl, 'info', message || '版本信息已读取');
             }
         }
 
         async function loadVersion() {
             setVersionLoading('正在读取版本信息...');
-            const result = await apiPost('version', { password: sessionPassword });
+            const result = await apiPost('version', { token: sessionToken });
             renderVersion(result.data, result.message);
         }
 
@@ -1093,7 +1335,7 @@
             const btn = document.getElementById('check-version-btn');
             btn.disabled = true;
             setVersionLoading('正在检查远端版本...');
-            const result = await apiPost('checkversion', { password: sessionPassword });
+            const result = await apiPost('checkversion', { token: sessionToken });
             renderVersion(result.data, result.message);
             if (result.status === 'ok') toast('版本检查完成');
             else toast(result.message || '版本检查失败', 'error');
@@ -1104,7 +1346,7 @@
             const btn = document.getElementById('update-version-btn');
             btn.disabled = true;
             setVersionLoading('正在更新版本，请勿关闭页面...');
-            const result = await apiPost('updateversion', { password: sessionPassword });
+            const result = await apiPost('updateversion', { token: sessionToken });
             renderVersion(result.data, result.message);
             if (result.status === 'ok') {
                 toast((result.message || '版本已更新') + '，页面即将刷新');
@@ -1126,6 +1368,24 @@
             const f = currentConfig.site_footer;
             document.getElementById('site-title').value = t || '';
             document.getElementById('site-footer').value = f || '';
+            document.getElementById('default-language').value = currentConfig.default_language || 'en';
+
+            const ads = currentConfig.ads || {};
+            ['top', 'inline', 'footer'].forEach(slot => {
+                const cfg = ads[slot] || {};
+                document.getElementById(`ad-${slot}-enabled`).checked = Boolean(cfg.enabled);
+                document.getElementById(`ad-${slot}-html`).value = cfg.html || '';
+            });
+
+            const donation = currentConfig.donation || {};
+            document.getElementById('donation-enabled').checked = Boolean(donation.enabled);
+            document.getElementById('donation-title').value = donation.title || '';
+            document.getElementById('donation-note').value = donation.note || '';
+            const list = document.getElementById('donation-admin-list');
+            list.innerHTML = '';
+            const items = Array.isArray(donation.items) ? donation.items : [];
+            items.forEach(item => addDonationRow(item));
+            if (!items.length) addDonationRow();
         }
 
         // ── Toast ──

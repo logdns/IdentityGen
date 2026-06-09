@@ -3,5 +3,26 @@
     "map_provider": "osm",
     "google_maps_key": "",
     "site_title": "",
-    "site_footer": ""
+    "site_footer": "",
+    "default_language": "en",
+    "ads": {
+        "top": {
+            "enabled": false,
+            "html": ""
+        },
+        "inline": {
+            "enabled": false,
+            "html": ""
+        },
+        "footer": {
+            "enabled": false,
+            "html": ""
+        }
+    },
+    "donation": {
+        "enabled": false,
+        "title": "",
+        "note": "",
+        "items": []
+    }
 }

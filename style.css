@@ -334,25 +334,38 @@ body.dark-mode .country-btn:hover {
   box-shadow: 0 0 16px var(--accent-glow);
 }
 
-/* ── Language Toggle Button ── */
-.lang-btn {
+/* ── Language Selector ── */
+.lang-select-wrap {
   display: flex;
   align-items: center;
   gap: 5px;
-  padding: 7px 14px;
+  padding: 0 10px;
+  height: 36px;
   border-radius: var(--radius-xs);
   border: 1px solid var(--lang-border);
   background: var(--lang-bg);
   color: var(--lang-color);
+  transition: all var(--transition);
+}
+
+.lang-select {
+  border: none;
+  background: transparent;
+  color: inherit;
   font-family: var(--font);
   font-size: 0.82em;
   font-weight: 700;
   cursor: pointer;
-  transition: all var(--transition);
-  letter-spacing: 0.03em;
+  outline: none;
+  max-width: 112px;
 }
 
-.lang-btn:hover {
+.lang-select option {
+  color: #1a1d2e;
+  background: #fff;
+}
+
+.lang-select-wrap:hover {
   background: var(--lang-hover-bg);
   border-color: var(--lang-hover-border);
   color: var(--lang-hover-color);
@@ -741,6 +754,31 @@ body.uk-mode.dark-mode .card-highlight {
   transform: translateY(-1px);
 }
 
+/* ─── Ads ─── */
+.ad-slot {
+  margin: 24px 0;
+  padding: 14px;
+  border-radius: var(--radius-sm);
+  border: 1px dashed var(--border);
+  background: var(--bg-card);
+  color: var(--text-dim);
+  overflow-wrap: anywhere;
+}
+
+.ad-slot:empty {
+  display: none;
+}
+
+.ad-slot img {
+  max-width: 100%;
+  height: auto;
+  border-radius: var(--radius-xs);
+}
+
+.ad-slot a {
+  font-weight: 700;
+}
+
 /* ─── Map ─── */
 .map-section {
   margin-top: 44px;
@@ -784,6 +822,81 @@ body.dark-mode .map-frame {
 
 .map-note a:hover {
   color: var(--accent);
+}
+
+/* ─── Donation ─── */
+.donation-section {
+  margin-top: 34px;
+  padding: 22px;
+  border-radius: var(--radius);
+  border: 1px solid var(--border);
+  background: var(--bg-card);
+  box-shadow: var(--card-shadow);
+}
+
+.donation-header {
+  text-align: center;
+  margin-bottom: 16px;
+}
+
+.donation-header h2 {
+  font-size: 1.1em;
+  margin-bottom: 5px;
+}
+
+.donation-header p {
+  color: var(--text-dim);
+  font-size: 0.86em;
+}
+
+.donation-list {
+  display: grid;
+  gap: 10px;
+}
+
+.donation-item {
+  display: grid;
+  grid-template-columns: minmax(90px, 140px) 1fr auto;
+  gap: 10px;
+  align-items: center;
+  padding: 12px 14px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: rgba(255, 255, 255, 0.35);
+}
+
+body.dark-mode .donation-item {
+  background: rgba(255, 255, 255, 0.03);
+}
+
+.donation-coin {
+  font-weight: 800;
+  color: var(--text);
+}
+
+.donation-network {
+  display: block;
+  font-size: 0.74em;
+  color: var(--text-muted);
+  margin-top: 2px;
+}
+
+.donation-address {
+  font-family: var(--mono);
+  font-size: 0.82em;
+  color: var(--text-dim);
+  overflow-wrap: anywhere;
+}
+
+.donation-copy {
+  padding: 8px 12px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-xs);
+  background: var(--accent-soft);
+  color: var(--accent);
+  font-family: var(--font);
+  font-weight: 700;
+  cursor: pointer;
 }
 
 /* ─── Toast ─── */
@@ -907,5 +1020,17 @@ footer {
     width: 32px;
     height: 32px;
     font-size: 1em;
+  }
+
+  .lang-select {
+    max-width: 88px;
+  }
+
+  .donation-item {
+    grid-template-columns: 1fr;
+  }
+
+  .donation-copy {
+    width: 100%;
   }
 }
