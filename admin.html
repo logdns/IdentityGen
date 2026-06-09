@@ -170,9 +170,18 @@
             box-shadow: 0 20px 60px rgba(17, 24, 39, 0.12);
         }
 
+        .login-eyebrow {
+            color: var(--accent);
+            font-size: 0.72em;
+            font-weight: 800;
+            letter-spacing: 0.12em;
+            text-transform: uppercase;
+            margin-bottom: 8px;
+        }
+
         .login-icon {
             font-size: 2.8em;
-            margin-bottom: 16px;
+            margin-bottom: 12px;
         }
 
         .login-card h2 {
@@ -184,7 +193,7 @@
         .login-card .subtitle {
             color: var(--text-dim);
             font-size: 0.88em;
-            margin-bottom: 28px;
+            margin-bottom: 26px;
         }
 
         .input-field {
@@ -197,7 +206,7 @@
             font-family: var(--font);
             font-size: 1em;
             text-align: center;
-            letter-spacing: 0.08em;
+            letter-spacing: 0;
             transition: border-color var(--transition);
         }
 
@@ -351,6 +360,99 @@
             margin-bottom: 0;
         }
 
+        .settings-grid {
+            display: grid;
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+            gap: 14px;
+        }
+
+        .settings-grid.three {
+            grid-template-columns: repeat(3, minmax(0, 1fr));
+        }
+
+        .setting-panel {
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+            padding: 16px;
+            border: 1px solid var(--border);
+            border-radius: var(--radius-sm);
+            background: var(--surface-2);
+            min-width: 0;
+        }
+
+        .setting-panel .textarea {
+            flex: 1;
+            min-height: 150px;
+        }
+
+        .setting-panel-head {
+            display: flex;
+            align-items: flex-start;
+            justify-content: space-between;
+            gap: 12px;
+        }
+
+        .setting-panel-title {
+            font-size: 0.95em;
+            font-weight: 800;
+        }
+
+        .setting-panel-desc {
+            color: var(--text-dim);
+            font-size: 0.78em;
+            line-height: 1.5;
+            margin-top: 2px;
+        }
+
+        .panel-toggle {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            min-width: 44px;
+            height: 26px;
+            border-radius: 999px;
+            background: #e5e7eb;
+            position: relative;
+            cursor: pointer;
+            flex-shrink: 0;
+        }
+
+        .panel-toggle input {
+            position: absolute;
+            opacity: 0;
+            pointer-events: none;
+        }
+
+        .panel-toggle span {
+            position: absolute;
+            width: 20px;
+            height: 20px;
+            left: 3px;
+            border-radius: 50%;
+            background: #fff;
+            box-shadow: 0 2px 8px rgba(17, 24, 39, 0.16);
+            transition: transform var(--transition);
+        }
+
+        .panel-toggle input:checked + span {
+            transform: translateX(18px);
+        }
+
+        .panel-toggle.active {
+            background: var(--accent);
+        }
+
+        .panel-toggle:focus-within {
+            box-shadow: 0 0 0 3px var(--accent-soft);
+        }
+
+        .stacked-actions {
+            display: flex;
+            justify-content: flex-end;
+            margin-top: 14px;
+        }
+
         .field-label {
             font-size: 0.72em;
             font-weight: 600;
@@ -393,10 +495,11 @@
         }
 
         .field-input.textarea {
-            min-height: 86px;
+            min-height: 126px;
             resize: vertical;
             text-align: left;
             letter-spacing: 0;
+            line-height: 1.55;
         }
 
         .field-input.select {
@@ -422,17 +525,22 @@
         .donation-admin-list {
             display: grid;
             gap: 10px;
-            margin-top: 10px;
+            margin-top: 8px;
         }
 
         .donation-admin-row {
             display: grid;
-            grid-template-columns: 1fr 1fr;
+            grid-template-columns: minmax(90px, 0.7fr) minmax(130px, 1fr) minmax(220px, 1.6fr) minmax(180px, 1.2fr) auto;
+            align-items: center;
             gap: 10px;
             padding: 12px;
             border: 1px solid var(--border);
             border-radius: var(--radius-sm);
             background: var(--surface-2);
+        }
+
+        .donation-admin-row .btn-danger {
+            height: 42px;
         }
 
         .donation-admin-row .full {
@@ -689,6 +797,11 @@
                 flex-direction: column;
             }
 
+            .settings-grid,
+            .settings-grid.three {
+                grid-template-columns: 1fr;
+            }
+
             .version-grid {
                 grid-template-columns: 1fr;
             }
@@ -699,6 +812,15 @@
 
             .donation-admin-row .full {
                 grid-column: auto;
+            }
+
+            .stacked-actions {
+                justify-content: stretch;
+                flex-direction: column;
+            }
+
+            .stacked-actions .btn-save {
+                width: 100%;
             }
         }
 
@@ -736,11 +858,12 @@
     <div class="login-screen" id="login-screen">
         <div class="login-card">
             <div class="login-icon">🔐</div>
-            <h2>后台管理</h2>
-            <p class="subtitle">请输入管理密码以继续</p>
-            <input type="password" class="input-field" id="pwd-input" placeholder="输入密码"
+            <div class="login-eyebrow">IdentityGen Admin</div>
+            <h2>Admin Login</h2>
+            <p class="subtitle">Enter your admin password to continue.</p>
+            <input type="password" class="input-field" id="pwd-input" placeholder="Password"
                 onkeydown="if(event.key==='Enter')doLogin()">
-            <button class="btn-primary" onclick="doLogin()">进入后台</button>
+            <button class="btn-primary" onclick="doLogin()">Enter Admin</button>
             <div class="login-error" id="login-err"></div>
         </div>
     </div>
@@ -879,20 +1002,49 @@
             <div class="section-header"><span class="section-icon">📣</span><span class="section-title">广告位管理</span>
             </div>
             <p class="section-desc">预留前台顶部、信息区下方、地图下方三个广告位。内容支持有限 HTML，脚本和事件属性会被过滤。</p>
-            <div class="field">
-                <label class="inline-check"><input type="checkbox" id="ad-top-enabled"> 启用顶部广告位</label>
-                <textarea class="field-input textarea" id="ad-top-html"
-                    placeholder="例如：&lt;a href='https://example.com' target='_blank'&gt;Sponsored Link&lt;/a&gt;"></textarea>
+            <div class="settings-grid three">
+                <div class="setting-panel">
+                    <div class="setting-panel-head">
+                        <div>
+                            <div class="setting-panel-title">顶部广告位</div>
+                            <div class="setting-panel-desc">显示在 Hero 与表单之间。</div>
+                        </div>
+                        <label class="panel-toggle" title="启用顶部广告位">
+                            <input type="checkbox" id="ad-top-enabled">
+                            <span></span>
+                        </label>
+                    </div>
+                    <textarea class="field-input textarea" id="ad-top-html"
+                        placeholder="例如：&lt;a href='https://example.com' target='_blank'&gt;Sponsored Link&lt;/a&gt;"></textarea>
+                </div>
+                <div class="setting-panel">
+                    <div class="setting-panel-head">
+                        <div>
+                            <div class="setting-panel-title">信息区下方</div>
+                            <div class="setting-panel-desc">显示在身份卡片和地图之间。</div>
+                        </div>
+                        <label class="panel-toggle" title="启用信息区下方广告位">
+                            <input type="checkbox" id="ad-inline-enabled">
+                            <span></span>
+                        </label>
+                    </div>
+                    <textarea class="field-input textarea" id="ad-inline-html" placeholder="广告 HTML"></textarea>
+                </div>
+                <div class="setting-panel">
+                    <div class="setting-panel-head">
+                        <div>
+                            <div class="setting-panel-title">地图下方</div>
+                            <div class="setting-panel-desc">显示在地图区域之后。</div>
+                        </div>
+                        <label class="panel-toggle" title="启用地图下方广告位">
+                            <input type="checkbox" id="ad-footer-enabled">
+                            <span></span>
+                        </label>
+                    </div>
+                    <textarea class="field-input textarea" id="ad-footer-html" placeholder="广告 HTML"></textarea>
+                </div>
             </div>
-            <div class="field">
-                <label class="inline-check"><input type="checkbox" id="ad-inline-enabled"> 启用信息区下方广告位</label>
-                <textarea class="field-input textarea" id="ad-inline-html" placeholder="广告 HTML"></textarea>
-            </div>
-            <div class="field">
-                <label class="inline-check"><input type="checkbox" id="ad-footer-enabled"> 启用地图下方广告位</label>
-                <textarea class="field-input textarea" id="ad-footer-html" placeholder="广告 HTML"></textarea>
-            </div>
-            <div class="field">
+            <div class="stacked-actions">
                 <button class="btn-save" onclick="saveAds()">保存广告位</button>
             </div>
         </div>
@@ -902,23 +1054,34 @@
             <div class="section-header"><span class="section-icon">₿</span><span class="section-title">加密币捐赠</span>
             </div>
             <p class="section-desc">在前台底部显示加密币捐赠地址。最多 8 条，地址会以纯文本显示并支持一键复制。</p>
-            <div class="field">
-                <label class="inline-check"><input type="checkbox" id="donation-enabled"> 启用捐赠区域</label>
+            <div class="setting-panel">
+                <div class="setting-panel-head">
+                    <div>
+                        <div class="setting-panel-title">前台捐赠区域</div>
+                        <div class="setting-panel-desc">启用后显示在前台底部，地址以纯文本展示。</div>
+                    </div>
+                    <label class="panel-toggle" title="启用捐赠区域">
+                        <input type="checkbox" id="donation-enabled">
+                        <span></span>
+                    </label>
+                </div>
+                <div class="settings-grid">
+                    <div>
+                        <div class="field-label">标题</div>
+                        <input class="field-input" type="text" id="donation-title" placeholder="Support IdentityGen">
+                    </div>
+                    <div>
+                        <div class="field-label">说明</div>
+                        <input class="field-input" type="text" id="donation-note" placeholder="Thank you for supporting this project.">
+                    </div>
+                </div>
+                <div>
+                    <div class="field-label">地址列表</div>
+                    <div class="donation-admin-list" id="donation-admin-list"></div>
+                </div>
             </div>
-            <div class="field">
-                <div class="field-label">标题</div>
-                <input class="field-input" type="text" id="donation-title" placeholder="Support IdentityGen">
-            </div>
-            <div class="field">
-                <div class="field-label">说明</div>
-                <input class="field-input" type="text" id="donation-note" placeholder="Thank you for supporting this project.">
-            </div>
-            <div class="field">
-                <div class="field-label">地址列表</div>
-                <div class="donation-admin-list" id="donation-admin-list"></div>
-                <button class="btn-save" onclick="addDonationRow()" style="margin-top:10px;">添加地址</button>
-            </div>
-            <div class="field">
+            <div class="stacked-actions" style="gap:10px;">
+                <button class="btn-save" onclick="addDonationRow()">添加地址</button>
                 <button class="btn-save" onclick="saveDonation()">保存捐赠设置</button>
             </div>
         </div>
@@ -1019,6 +1182,19 @@
             text.textContent = String(message == null ? '' : message);
             box.append(dot, text);
             el.appendChild(box);
+        }
+
+        function syncToggleStyles() {
+            document.querySelectorAll('.panel-toggle').forEach(label => {
+                const input = label.querySelector('input[type="checkbox"]');
+                label.classList.toggle('active', Boolean(input && input.checked));
+            });
+        }
+
+        function bindToggleStyles() {
+            document.querySelectorAll('.panel-toggle input[type="checkbox"]').forEach(input => {
+                input.addEventListener('change', syncToggleStyles);
+            });
         }
 
         function authBody(extra) {
@@ -1464,6 +1640,7 @@
             const items = Array.isArray(donation.items) ? donation.items : [];
             items.forEach(item => addDonationRow(item));
             if (!items.length) addDonationRow();
+            syncToggleStyles();
         }
 
         // ── Toast ──
@@ -1493,6 +1670,7 @@
 
         // Init theme on load
         initAdminTheme();
+        bindToggleStyles();
     </script>
 </body>
 
