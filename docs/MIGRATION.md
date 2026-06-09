@@ -2,6 +2,165 @@
 
 本文档用于从没有后台版本更新功能的旧版本迁移到新版。
 
+## 旧数据迁移总览
+
+IdentityGen 的后台数据都保存在服务器运行时文件 `config.json` 中。迁移旧版本时，核心原则是：**更新代码，不覆盖生产 `config.json`**。
+
+旧版 `config.json` 可以直接被新版读取。新版 `server.js` 会在读取配置时自动补齐缺失字段，并在后台保存配置时写回完整结构。也就是说，从旧版升级到新版通常不需要手动改 JSON，只需要保留原来的 `config.json`。
+
+### 升级前备份
+
+在服务器网站目录执行：
+
+```bash
+cd /www/wwwroot/identitygen
+cp config.json config.backup.$(date +%Y%m%d-%H%M%S).json
+git status --short config.json
+```
+
+如果 `git status` 没有输出，说明 `config.json` 没被 Git 跟踪，可以继续升级。
+
+如果看到类似下面的输出：
+
+```text
+ M config.json
+```
+
+或：
+
+```text
+A  config.json
+```
+
+说明运行时配置被 Git 跟踪或即将提交。请先停止跟踪，但不要删除服务器上的文件：
+
+```bash
+git rm --cached config.json
+printf "\nconfig.json\nconfig.backup.*.json\n" >> .gitignore
+git add .gitignore
+git commit -m "fix: stop tracking runtime config"
+```
+
+### 旧字段到新字段
+
+新版会保留旧字段，并自动补齐新增字段：
+
+| 旧版字段 | 新版处理方式 |
+|----------|--------------|
+| `password` | 保留，继续作为后台密码 |
+| `map_provider` | 保留，只允许 `osm` 或 `google` |
+| `google_maps_key` | 保留，并限制长度 |
+| `site_title` | 保留，并限制长度 |
+| `site_footer` | 保留，但会过滤脚本、事件属性和危险链接 |
+| `default_language` | 旧版没有时自动补 `en` |
+| `ads` | 旧版没有时自动补三个关闭的广告位 |
+| `donation` | 旧版没有时自动补关闭的捐赠配置 |
+
+新版默认补齐结构如下：
+
+```json
+{
+  "default_language": "en",
+  "ads": {
+    "top": { "enabled": false, "html": "" },
+    "inline": { "enabled": false, "html": "" },
+    "footer": { "enabled": false, "html": "" }
+  },
+  "donation": {
+    "enabled": false,
+    "title": "",
+    "note": "",
+    "items": []
+  }
+}
+```
+
+### 手动合并旧数据
+
+如果你是“文件上传部署”，需要从旧目录复制数据到新目录：
+
+```bash
+cd /www/wwwroot
+cp identitygen/config.json identitygen-new/config.json
+```
+
+如果新目录已经自动生成了一个新的 `config.json`，先备份再覆盖：
+
+```bash
+cd /www/wwwroot/identitygen-new
+cp config.json config.fresh.json
+cp ../identitygen/config.json ./config.json
+```
+
+不要把 `config.example.json` 改名后覆盖生产 `config.json`。`config.example.json` 只是模板，会包含默认密码 `admin`，覆盖后会丢失你的后台密码、API Key、广告位和捐赠地址。
+
+### 升级后验证
+
+升级并重启服务后检查公开配置：
+
+```bash
+curl -sS https://你的域名/api
+```
+
+正常返回里应该包含这些字段：
+
+```json
+{
+  "status": "ok",
+  "data": {
+    "default_language": "en",
+    "ads": {
+      "top": { "enabled": false, "html": "" },
+      "inline": { "enabled": false, "html": "" },
+      "footer": { "enabled": false, "html": "" }
+    },
+    "donation": {
+      "enabled": false,
+      "title": "",
+      "note": "",
+      "items": []
+    }
+  }
+}
+```
+
+再进入后台检查：
+
+```text
+https://你的域名/admin.html
+```
+
+需要确认：
+
+- 原后台密码可以登录。
+- 地图服务商和 Google Maps API Key 没丢。
+- 网站标题和页脚还在。
+- “前台语言”默认是 English，或是你后台设置的语言。
+- “广告位管理”和“加密币捐赠”能正常保存。
+- “系统在线更新”能显示当前版本和远端版本。
+
+### 浏览器旧缓存处理
+
+从 `v1.2.1` 开始，`app.js` 和 `style.css` 已带版本参数并返回 `no-cache`。如果前台仍显示旧中文界面或后台仍是旧更新面板，先重启服务：
+
+```bash
+pm2 restart identitygen
+```
+
+然后强制刷新浏览器：
+
+```text
+Ctrl + F5 / Cmd + Shift + R
+```
+
+如仍异常，可以在浏览器控制台清除旧语言偏好：
+
+```js
+localStorage.removeItem('idgen_lang');
+localStorage.removeItem('idgen_lang_explicit');
+location.reload();
+```
+
 ## 迁移到 v1.2.1
 
 v1.2.1 是针对 v1.2.0 的兼容修复版本，重点解决前台默认语言和后台在线更新认证问题。

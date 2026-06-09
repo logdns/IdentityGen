@@ -401,6 +401,8 @@ pm2 restart identitygen
 
 迁移前请确认 `config.json` 没有被 Git 跟踪，避免后台密码、API Key、网站定制、广告位和捐赠配置被覆盖。完整步骤见 [旧版本迁移指南](docs/MIGRATION.md)。
 
+旧数据迁移重点：先备份生产环境 `config.json`，更新代码时不要上传或覆盖这个文件。新版会自动补齐 `default_language`、`ads`、`donation` 等新增字段。
+
 ---
 
 ## 🔗 API 说明
