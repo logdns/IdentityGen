@@ -49,17 +49,61 @@ function insertAdNode(container, node) {
     if (node.nodeName === 'SCRIPT') {
         const script = document.createElement('script');
         Array.from(node.attributes).forEach(attr => script.setAttribute(attr.name, attr.value));
+        if (script.src) script.async = false;
         script.textContent = node.textContent || '';
         container.appendChild(script);
-        return;
+        return script;
     }
-    container.appendChild(document.importNode(node, true));
+    const imported = document.importNode(node, true);
+    container.appendChild(imported);
+    return imported;
 }
 
-function renderAdHtml(container, html) {
+async function withAdDocumentWrite(container, task) {
+    const originalWrite = document.write;
+    const originalWriteln = document.writeln;
+    const writeToAd = value => {
+        const tpl = document.createElement('template');
+        tpl.innerHTML = String(value || '');
+        Array.from(tpl.content.childNodes).forEach(node => insertAdNode(container, node));
+    };
+
+    document.write = writeToAd;
+    document.writeln = value => writeToAd(`${value}\n`);
+    try {
+        await task();
+    } finally {
+        document.write = originalWrite;
+        document.writeln = originalWriteln;
+    }
+}
+
+async function runAdScript(container, sourceNode) {
+    const script = document.createElement('script');
+    Array.from(sourceNode.attributes).forEach(attr => script.setAttribute(attr.name, attr.value));
+    if (script.src) script.async = false;
+    script.textContent = sourceNode.textContent || '';
+
+    const loaded = script.src ? new Promise(resolve => {
+        script.onload = resolve;
+        script.onerror = resolve;
+        setTimeout(resolve, 12000);
+    }) : Promise.resolve();
+
+    container.appendChild(script);
+    await loaded;
+}
+
+async function renderAdHtml(container, html) {
     const tpl = document.createElement('template');
     tpl.innerHTML = html;
-    Array.from(tpl.content.childNodes).forEach(node => insertAdNode(container, node));
+    const nodes = Array.from(tpl.content.childNodes);
+    await withAdDocumentWrite(container, async () => {
+        for (const node of nodes) {
+            if (node.nodeName === 'SCRIPT') await runAdScript(container, node);
+            else insertAdNode(container, node);
+        }
+    });
 }
 
 async function loadServerConfig() {
@@ -325,8 +369,8 @@ function renderAds() {
             const dimensions = getAdDimensions(adHtml);
             el.style.setProperty('--ad-width', dimensions.width ? `${dimensions.width}px` : '100%');
             el.style.setProperty('--ad-height', dimensions.height ? `${dimensions.height}px` : 'auto');
-            renderAdHtml(el, adHtml);
             el.hidden = false;
+            renderAdHtml(el, adHtml);
         } else {
             el.innerHTML = '';
             el.style.removeProperty('--ad-width');
