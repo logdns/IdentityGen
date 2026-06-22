@@ -16,7 +16,7 @@ const https = require('https');
 const fs = require('fs');
 const path = require('path');
 const url = require('url');
-const { execFile } = require('child_process');
+const { execFile, spawn } = require('child_process');
 const crypto = require('crypto');
 const { promisify } = require('util');
 
@@ -30,6 +30,7 @@ const VERSION_FILE = path.join(ROOT, 'VERSION');
 const GIT_TIMEOUT = 45000;
 const MAX_BODY_SIZE = 256 * 1024;
 const REMOTE_VERSION_URL = 'https://raw.githubusercontent.com/logdns/IdentityGen/main/VERSION';
+const RESTART_DELAY_MS = 1200;
 
 // ─── MIME Types ───
 const MIME = {
@@ -579,8 +580,8 @@ async function updateVersion() {
         return {
             ok: true,
             message: stashed
-                ? '版本已更新；本地未提交改动已自动暂存，请按需重启服务。'
-                : '版本已更新，请按需重启服务使服务端代码生效。',
+                ? '版本已更新；本地未提交改动已自动暂存，服务即将自动重启。'
+                : '版本已更新，服务即将自动重启以加载新代码。',
             data: after
         };
     } catch (e) {
@@ -596,6 +597,40 @@ async function updateVersion() {
             data: before
         };
     }
+}
+
+function isPm2Process() {
+    return Boolean(process.env.pm_id || process.env.PM2_HOME);
+}
+
+function scheduleServerRestart(reason) {
+    const label = reason || 'server restart requested';
+    console.log(`[restart] ${label}`);
+
+    setTimeout(() => {
+        if (isPm2Process()) {
+            console.log('[restart] PM2 detected, exiting current process for PM2 restart');
+            process.exit(0);
+            return;
+        }
+
+        console.log('[restart] closing server and starting a replacement process');
+        server.close(() => {
+            const child = spawn(process.execPath, process.argv.slice(1), {
+                cwd: ROOT,
+                env: process.env,
+                detached: true,
+                stdio: 'ignore'
+            });
+            child.unref();
+            process.exit(0);
+        });
+
+        setTimeout(() => {
+            console.error('[restart] graceful restart timed out, exiting current process');
+            process.exit(0);
+        }, 5000).unref();
+    }, RESTART_DELAY_MS).unref();
 }
 
 // ─── HTTP Helpers ───
@@ -760,11 +795,15 @@ async function handleAPI(req, res, parsedUrl) {
 
             if (action === 'updateversion') {
                 const result = await updateVersion();
-                return sendJSON(req, res, result.ok ? 200 : (result.statusCode || 500), {
+                const restartScheduled = Boolean(result.ok && result.data && result.data.update_output);
+                if (restartScheduled) result.data.server_restart_scheduled = true;
+                sendJSON(req, res, result.ok ? 200 : (result.statusCode || 500), {
                     status: result.ok ? 'ok' : 'error',
                     message: result.message,
                     data: result.data
                 });
+                if (restartScheduled) scheduleServerRestart('version update completed');
+                return;
             }
 
             const data = await getVersionInfo({ fetch: action === 'checkversion' });

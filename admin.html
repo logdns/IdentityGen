@@ -1102,7 +1102,7 @@
         <div class="section-card">
             <div class="section-header"><span class="section-icon">⬆️</span><span class="section-title">系统在线更新</span>
             </div>
-            <p class="section-desc">检查 Git 远端版本并在线拉取更新。更新后如涉及后端代码，请重启 Node/PM2 进程让新代码生效。</p>
+            <p class="section-desc">检查 Git 远端版本并在线拉取更新。更新成功后服务会自动重启，以加载新版 server.js。</p>
             <div id="version-status">
                 <div class="status info"><span class="status-dot"></span> 等待检查更新</div>
             </div>
@@ -1655,8 +1655,14 @@
             if (result.status === 'ok') {
                 if (result.data && result.data.update_output) versionLog(result.data.update_output, true);
                 versionLog(result.message || '版本已更新', true);
-                toast((result.message || '版本已更新') + '，页面即将刷新');
-                setTimeout(() => window.location.reload(), 1200);
+                if (result.data && result.data.server_restart_scheduled) {
+                    versionLog('服务正在自动重启，页面将在数秒后刷新。', true);
+                    toast('版本已更新，服务正在自动重启');
+                    setTimeout(() => window.location.reload(), 5000);
+                } else {
+                    toast((result.message || '版本已更新') + '，页面即将刷新');
+                    setTimeout(() => window.location.reload(), 1200);
+                }
             } else {
                 versionLog(result.message || '版本更新失败', true);
                 toast(result.message || '版本更新失败', 'error');
