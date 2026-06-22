@@ -10,6 +10,9 @@ let currentLang = 'en';
 let currentIdentity = {};
 let currentTheme = localStorage.getItem('idgen_theme') || 'light';
 const AD_STORAGE_PREFIX = 'identitygen-ad:v1:';
+let adRenderSeq = 0;
+let adRenderBatch = 0;
+let adRenderQueue = Promise.resolve();
 
 const $ = id => document.getElementById(id);
 const pick = arr => arr[Math.floor(Math.random() * arr.length)];
@@ -45,40 +48,29 @@ function getAdDimensions(html) {
     };
 }
 
-function insertAdNode(container, node) {
-    if (node.nodeName === 'SCRIPT') {
-        const script = document.createElement('script');
-        Array.from(node.attributes).forEach(attr => script.setAttribute(attr.name, attr.value));
-        if (script.src) script.async = false;
-        script.textContent = node.textContent || '';
-        container.appendChild(script);
-        return script;
-    }
-    const imported = document.importNode(node, true);
-    container.appendChild(imported);
-    return imported;
+function looksLikeRawAdScript(value) {
+    const text = String(value || '').trim();
+    if (!text || text.startsWith('<')) return false;
+    return /\b(window\.)?atOptions\s*=|\bdocument\.(write|writeln|createElement)\b|\badsbygoogle\b|\bgoogletag\b|\bappendChild\b|\bsrc\s*=|\.js\b/i.test(text);
 }
 
-async function withAdDocumentWrite(container, task) {
-    const originalWrite = document.write;
-    const originalWriteln = document.writeln;
-    const writeToAd = value => {
-        const tpl = document.createElement('template');
-        tpl.innerHTML = String(value || '');
-        Array.from(tpl.content.childNodes).forEach(node => insertAdNode(container, node));
-    };
-
-    document.write = writeToAd;
-    document.writeln = value => writeToAd(`${value}\n`);
-    try {
-        await task();
-    } finally {
-        document.write = originalWrite;
-        document.writeln = originalWriteln;
-    }
+function escapeScriptText(value) {
+    return String(value || '').replace(/<\/script/gi, '<\\/script');
 }
 
-async function runAdScript(container, sourceNode) {
+function normalizeAdHtml(value) {
+    const html = decodeAdHtml(value).trim();
+    if (!html) return '';
+    return looksLikeRawAdScript(html) ? `<script>${escapeScriptText(html)}</script>` : html;
+}
+
+function isAdRenderActive(container, renderId) {
+    return !renderId || container.dataset.adRenderId === String(renderId);
+}
+
+async function runAdScript(container, sourceNode, renderId) {
+    if (!isAdRenderActive(container, renderId)) return;
+
     const script = document.createElement('script');
     Array.from(sourceNode.attributes).forEach(attr => script.setAttribute(attr.name, attr.value));
     if (script.src) script.async = false;
@@ -90,20 +82,69 @@ async function runAdScript(container, sourceNode) {
         setTimeout(resolve, 12000);
     }) : Promise.resolve();
 
-    container.appendChild(script);
+    if (sourceNode.isConnected && sourceNode.parentNode && sourceNode.parentNode !== container) {
+        sourceNode.replaceWith(script);
+    } else {
+        container.appendChild(script);
+    }
     await loaded;
 }
 
-async function renderAdHtml(container, html) {
+async function executeNestedAdScripts(container, root, renderId) {
+    if (!root.querySelectorAll) return;
+    const scripts = Array.from(root.querySelectorAll('script'));
+    for (const script of scripts) {
+        if (!isAdRenderActive(container, renderId)) return;
+        await runAdScript(container, script, renderId);
+    }
+}
+
+async function insertAdNode(container, node, renderId) {
+    if (!isAdRenderActive(container, renderId)) return;
+    if (node.nodeName === 'SCRIPT') {
+        await runAdScript(container, node, renderId);
+        return;
+    }
+
+    const imported = document.importNode(node, true);
+    container.appendChild(imported);
+    await executeNestedAdScripts(container, imported, renderId);
+}
+
+async function withAdDocumentWrite(container, task, renderId) {
+    const originalWrite = document.write;
+    const originalWriteln = document.writeln;
+    let writeQueue = Promise.resolve();
+
+    const writeToAd = value => {
+        if (!isAdRenderActive(container, renderId)) return;
+        const tpl = document.createElement('template');
+        tpl.innerHTML = String(value || '');
+        Array.from(tpl.content.childNodes).forEach(node => {
+            writeQueue = writeQueue.then(() => insertAdNode(container, node, renderId));
+        });
+    };
+
+    document.write = writeToAd;
+    document.writeln = value => writeToAd(`${value}\n`);
+    try {
+        await task();
+        await writeQueue;
+    } finally {
+        document.write = originalWrite;
+        document.writeln = originalWriteln;
+    }
+}
+
+async function renderAdHtml(container, html, renderId) {
     const tpl = document.createElement('template');
     tpl.innerHTML = html;
     const nodes = Array.from(tpl.content.childNodes);
     await withAdDocumentWrite(container, async () => {
         for (const node of nodes) {
-            if (node.nodeName === 'SCRIPT') await runAdScript(container, node);
-            else insertAdNode(container, node);
+            await insertAdNode(container, node, renderId);
         }
-    });
+    }, renderId);
 }
 
 async function loadServerConfig() {
@@ -357,27 +398,40 @@ function setLang(lang) {
     if (currentIdentity.name) renderIdentity();
 }
 
-function renderAds() {
+async function renderAdsNow(batchId) {
     const ads = serverConfig.ads || {};
-    ['top', 'inline', 'footer'].forEach(slot => {
+    for (const slot of ['top', 'inline', 'footer']) {
+        if (batchId !== adRenderBatch) return;
         const el = $(`ad-${slot}`);
-        if (!el) return;
+        if (!el) continue;
         const cfg = ads[slot] || {};
-        const adHtml = decodeAdHtml(cfg.html).trim();
+        const adHtml = normalizeAdHtml(cfg.html);
         if (cfg.enabled && adHtml) {
             el.innerHTML = '';
+            const renderId = String(++adRenderSeq);
+            el.dataset.adRenderId = renderId;
             const dimensions = getAdDimensions(adHtml);
             el.style.setProperty('--ad-width', dimensions.width ? `${dimensions.width}px` : '100%');
             el.style.setProperty('--ad-height', dimensions.height ? `${dimensions.height}px` : 'auto');
             el.hidden = false;
-            renderAdHtml(el, adHtml);
+            await renderAdHtml(el, adHtml, renderId).catch(error => {
+                console.warn(`Ad render failed for slot "${slot}"`, error);
+            });
         } else {
             el.innerHTML = '';
+            delete el.dataset.adRenderId;
             el.style.removeProperty('--ad-width');
             el.style.removeProperty('--ad-height');
             el.hidden = true;
         }
-    });
+    }
+}
+
+function renderAds() {
+    const batchId = ++adRenderBatch;
+    adRenderQueue = adRenderQueue
+        .catch(() => { })
+        .then(() => renderAdsNow(batchId));
 }
 
 function renderDonation() {
