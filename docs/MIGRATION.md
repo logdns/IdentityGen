@@ -53,7 +53,7 @@ git commit -m "fix: stop tracking runtime config"
 | `site_title` | 保留，并限制长度 |
 | `site_footer` | 保留，但会过滤脚本、事件属性和危险链接 |
 | `default_language` | 旧版没有时自动补 `en` |
-| `ads` | 旧版没有时自动补三个关闭的广告位 |
+| `ads` | 旧版没有时自动补四个关闭的广告位 |
 | `donation` | 旧版没有时自动补关闭的捐赠配置 |
 
 新版默认补齐结构如下：
@@ -62,6 +62,7 @@ git commit -m "fix: stop tracking runtime config"
 {
   "default_language": "en",
   "ads": {
+    "head": { "enabled": false, "html": "" },
     "top": { "enabled": false, "html": "" },
     "inline": { "enabled": false, "html": "" },
     "footer": { "enabled": false, "html": "" }
@@ -110,6 +111,7 @@ curl -sS https://你的域名/api
   "data": {
     "default_language": "en",
     "ads": {
+      "head": { "enabled": false, "html": "" },
       "top": { "enabled": false, "html": "" },
       "inline": { "enabled": false, "html": "" },
       "footer": { "enabled": false, "html": "" }
@@ -186,6 +188,19 @@ pm2 restart identitygen
 ```text
 Ctrl + F5 / Cmd + Shift + R
 ```
+
+## 迁移到 v1.2.10
+
+v1.2.10 新增后台 Head / AdSense 广告位。
+
+### 变更内容
+
+- 后台“广告位管理”新增 `Head / AdSense` 配置项。
+- Head 广告位保存到 `ads.head`，会由 Node.js 服务端直接注入首页源码的 `<head>` 标签内。
+- 适合放置 Google AdSense 站点验证代码和自动广告代码，例如 `pagead2.googlesyndication.com/pagead/js/adsbygoogle.js`。
+- 原顶部、信息区下方、地图下方广告位保持不变，仍在前台广告容器中加载。
+
+升级后请重启 Node.js 服务。保存 Head 广告位后，可用浏览器“查看网页源代码”确认 AdSense 脚本已出现在 `</head>` 前。
 
 ## 迁移到 v1.2.9
 

@@ -58,6 +58,7 @@ const DEFAULT_CONFIG = {
     site_footer: '',
     default_language: 'en',
     ads: {
+        head: { enabled: false, html: '' },
         top: { enabled: false, html: '' },
         inline: { enabled: false, html: '' },
         footer: { enabled: false, html: '' }
@@ -71,9 +72,10 @@ const DEFAULT_CONFIG = {
 };
 
 const LANGS = new Set(['en', 'zh-CN', 'zh-TW', 'ja']);
-const AD_SLOTS = ['top', 'inline', 'footer'];
+const AD_SLOTS = ['head', 'top', 'inline', 'footer'];
 const SESSIONS = new Map();
 const SESSION_TTL = 1000 * 60 * 60 * 6;
+const AD_STORAGE_PREFIX = 'identitygen-ad:v1:';
 
 function createSession() {
     const token = crypto.randomBytes(24).toString('hex');
@@ -142,6 +144,35 @@ function normalizeAds(ads) {
         acc[slot] = normalizeAdSlot(input[slot]);
         return acc;
     }, {});
+}
+
+function decodeAdHtml(value) {
+    const raw = String(value || '');
+    if (!raw.startsWith(AD_STORAGE_PREFIX)) return raw;
+
+    try {
+        return Buffer.from(raw.slice(AD_STORAGE_PREFIX.length), 'base64').toString('utf8');
+    } catch (e) {
+        return '';
+    }
+}
+
+function getHeadAdHtml() {
+    const config = readConfig();
+    const headAd = config.ads && config.ads.head ? config.ads.head : {};
+    if (!headAd.enabled) return '';
+    return decodeAdHtml(headAd.html).trim();
+}
+
+function injectHeadAd(html) {
+    const headAdHtml = getHeadAdHtml();
+    if (!headAdHtml) return html;
+
+    const marker = '</head>';
+    const index = html.toLowerCase().lastIndexOf(marker);
+    if (index === -1) return html;
+
+    return `${html.slice(0, index)}\n    ${headAdHtml}\n${html.slice(index)}`;
 }
 
 function normalizeDonation(donation) {
@@ -767,13 +798,28 @@ function serveStatic(req, res, filePath) {
 
         const ext = path.extname(filePath).toLowerCase();
         const contentType = MIME[ext] || 'application/octet-stream';
+        const isIndexHtml = path.basename(filePath) === 'index.html';
 
-        res.writeHead(200, {
+        const headers = {
             'Content-Type': contentType,
             'Cache-Control': ext === '.html' || ext === '.js' || ext === '.css'
                 ? 'no-cache'
                 : 'public, max-age=86400'
-        });
+        };
+
+        if (isIndexHtml) {
+            fs.readFile(filePath, 'utf8', (readErr, html) => {
+                if (readErr) {
+                    res.writeHead(500, { 'Content-Type': 'text/plain; charset=utf-8' });
+                    return res.end('Internal Server Error');
+                }
+                res.writeHead(200, headers);
+                res.end(injectHeadAd(html));
+            });
+            return;
+        }
+
+        res.writeHead(200, headers);
         fs.createReadStream(filePath).pipe(res);
     });
 }

@@ -6,6 +6,10 @@
     "site_footer": "",
     "default_language": "en",
     "ads": {
+        "head": {
+            "enabled": false,
+            "html": ""
+        },
         "top": {
             "enabled": false,
             "html": ""

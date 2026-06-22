@@ -1001,8 +1001,21 @@
         <div class="section-card">
             <div class="section-header"><span class="section-icon">📣</span><span class="section-title">广告位管理</span>
             </div>
-            <p class="section-desc">预留前台顶部、信息区下方、地图下方三个广告位。广告代码会兼容保存，并在前台广告容器中按顺序加载。</p>
-            <div class="settings-grid three">
+            <p class="section-desc">预留 Head、前台顶部、信息区下方、地图下方四个广告位。Head 广告位会直接注入首页 <code>&lt;head&gt;</code>，适合 Google AdSense 站点验证和自动广告代码。</p>
+            <div class="settings-grid">
+                <div class="setting-panel">
+                    <div class="setting-panel-head">
+                        <div>
+                            <div class="setting-panel-title">Head / AdSense</div>
+                            <div class="setting-panel-desc">注入到首页 head 标签内。</div>
+                        </div>
+                        <label class="panel-toggle" title="启用 Head 广告位">
+                            <input type="checkbox" id="ad-head-enabled">
+                            <span></span>
+                        </label>
+                    </div>
+                    <textarea class="field-input textarea mono" id="ad-head-html" placeholder="Google AdSense head 代码"></textarea>
+                </div>
                 <div class="setting-panel">
                     <div class="setting-panel-head">
                         <div>
@@ -1135,6 +1148,7 @@
         let sessionToken = '';
         let currentConfig = {};
         const AD_STORAGE_PREFIX = 'identitygen-ad:v1:';
+        const AD_SLOTS = ['head', 'top', 'inline', 'footer'];
 
         function encodeAdHtml(value) {
             const raw = String(value || '');
@@ -1412,7 +1426,7 @@
 
         function readAdsForm() {
             const ads = {};
-            ['top', 'inline', 'footer'].forEach(slot => {
+            AD_SLOTS.forEach(slot => {
                 ads[slot] = {
                     enabled: document.getElementById(`ad-${slot}-enabled`).checked,
                     html: encodeAdHtml(document.getElementById(`ad-${slot}-html`).value)
@@ -1430,7 +1444,7 @@
             if (result.status === 'ok') {
                 currentConfig = result.data || currentConfig;
                 const savedAds = currentConfig.ads || {};
-                const lostSlots = ['top', 'inline', 'footer'].filter(slot => {
+                const lostSlots = AD_SLOTS.filter(slot => {
                     const submitted = submittedAds[slot] || {};
                     const saved = savedAds[slot] || {};
                     return submitted.enabled && submitted.html && !saved.html;
@@ -1664,7 +1678,7 @@
             document.getElementById('default-language').value = currentConfig.default_language || 'en';
 
             const ads = currentConfig.ads || {};
-            ['top', 'inline', 'footer'].forEach(slot => {
+            AD_SLOTS.forEach(slot => {
                 const cfg = ads[slot] || {};
                 document.getElementById(`ad-${slot}-enabled`).checked = Boolean(cfg.enabled);
                 document.getElementById(`ad-${slot}-html`).value = decodeAdHtml(cfg.html);
