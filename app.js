@@ -10,6 +10,7 @@ let currentLang = 'en';
 let currentIdentity = {};
 let currentTheme = localStorage.getItem('idgen_theme') || 'light';
 const AD_STORAGE_PREFIX = 'identitygen-ad:v1:';
+const AD_WRITE_SETTLE_MS = 2500;
 let adRenderSeq = 0;
 let adRenderBatch = 0;
 let adRenderQueue = Promise.resolve();
@@ -66,6 +67,32 @@ function normalizeAdHtml(value) {
 
 function isAdRenderActive(container, renderId) {
     return !renderId || container.dataset.adRenderId === String(renderId);
+}
+
+function wait(ms) {
+    return new Promise(resolve => setTimeout(resolve, ms));
+}
+
+function hasRenderedAdContent(container) {
+    if (container.querySelector('iframe, img, ins, object, embed, canvas, video, svg')) return true;
+
+    return Array.from(container.childNodes).some(node => {
+        if (node.nodeType === Node.TEXT_NODE) return node.textContent.trim();
+        if (node.nodeType !== Node.ELEMENT_NODE) return false;
+
+        const tag = node.tagName;
+        if (tag === 'SCRIPT' || tag === 'STYLE' || tag === 'TEMPLATE') return false;
+        return node.textContent.trim() || node.children.length;
+    });
+}
+
+function hideEmptyAdSlot(container, renderId) {
+    if (!isAdRenderActive(container, renderId) || hasRenderedAdContent(container)) return;
+    container.innerHTML = '';
+    delete container.dataset.adRenderId;
+    container.style.removeProperty('--ad-width');
+    container.style.removeProperty('--ad-height');
+    container.hidden = true;
 }
 
 async function runAdScript(container, sourceNode, renderId) {
@@ -129,6 +156,8 @@ async function withAdDocumentWrite(container, task, renderId) {
     document.writeln = value => writeToAd(`${value}\n`);
     try {
         await task();
+        await writeQueue;
+        await wait(AD_WRITE_SETTLE_MS);
         await writeQueue;
     } finally {
         document.write = originalWrite;
@@ -417,6 +446,7 @@ async function renderAdsNow(batchId) {
             await renderAdHtml(el, adHtml, renderId).catch(error => {
                 console.warn(`Ad render failed for slot "${slot}"`, error);
             });
+            hideEmptyAdSlot(el, renderId);
         } else {
             el.innerHTML = '';
             delete el.dataset.adRenderId;
