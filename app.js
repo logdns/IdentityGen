@@ -100,7 +100,8 @@ async function runAdScript(container, sourceNode, renderId) {
 
     const script = document.createElement('script');
     Array.from(sourceNode.attributes).forEach(attr => script.setAttribute(attr.name, attr.value));
-    if (script.src) script.async = false;
+    const shouldRunAsync = script.src && (sourceNode.hasAttribute('async') || sourceNode.hasAttribute('defer'));
+    if (script.src && !shouldRunAsync) script.async = false;
     script.textContent = sourceNode.textContent || '';
 
     const loaded = script.src ? new Promise(resolve => {
@@ -114,6 +115,7 @@ async function runAdScript(container, sourceNode, renderId) {
     } else {
         container.appendChild(script);
     }
+    if (shouldRunAsync) return;
     await loaded;
 }
 
