@@ -15,7 +15,6 @@ const http = require('http');
 const https = require('https');
 const fs = require('fs');
 const path = require('path');
-const url = require('url');
 const { execFile, spawn } = require('child_process');
 const crypto = require('crypto');
 const { promisify } = require('util');
@@ -76,6 +75,9 @@ const LANGS = new Set(['en', 'zh-CN', 'zh-TW', 'ja']);
 const AD_SLOTS = ['head', 'top', 'inline', 'footer'];
 const SESSIONS = new Map();
 const SESSION_TTL = 1000 * 60 * 60 * 6;
+const LOGIN_ATTEMPTS = new Map();
+const LOGIN_WINDOW_MS = 15 * 60 * 1000;
+const LOGIN_MAX_ATTEMPTS = 10;
 const AD_STORAGE_PREFIX = 'identitygen-ad:v1:';
 
 function createSession() {
@@ -94,6 +96,41 @@ function isAuthenticated(input, config) {
     }
     SESSIONS.set(token, Date.now() + SESSION_TTL);
     return true;
+}
+
+function getClientKey(req) {
+    return (req && req.socket && req.socket.remoteAddress) || 'unknown';
+}
+
+function canAttemptLogin(req) {
+    const now = Date.now();
+    const key = getClientKey(req);
+    const current = LOGIN_ATTEMPTS.get(key);
+    if (!current || current.resetAt <= now) {
+        LOGIN_ATTEMPTS.set(key, { count: 0, resetAt: now + LOGIN_WINDOW_MS });
+        return true;
+    }
+    return current.count < LOGIN_MAX_ATTEMPTS;
+}
+
+function recordLoginFailure(req) {
+    const now = Date.now();
+    const key = getClientKey(req);
+    const current = LOGIN_ATTEMPTS.get(key);
+    if (!current || current.resetAt <= now) {
+        LOGIN_ATTEMPTS.set(key, { count: 1, resetAt: now + LOGIN_WINDOW_MS });
+    } else {
+        current.count += 1;
+    }
+    if (LOGIN_ATTEMPTS.size > 10000) {
+        for (const [entryKey, entry] of LOGIN_ATTEMPTS) {
+            if (entry.resetAt <= now) LOGIN_ATTEMPTS.delete(entryKey);
+        }
+    }
+}
+
+function clearLoginFailures(req) {
+    LOGIN_ATTEMPTS.delete(getClientKey(req));
 }
 
 function limitString(value, maxLength) {
@@ -216,21 +253,37 @@ function normalizeConfig(config) {
 function readConfig() {
     try {
         if (!fs.existsSync(CONFIG_FILE)) {
-            fs.writeFileSync(CONFIG_FILE, JSON.stringify(DEFAULT_CONFIG, null, 4), 'utf8');
-            return normalizeConfig(DEFAULT_CONFIG);
+            const initialConfig = {
+                ...DEFAULT_CONFIG,
+                password: crypto.randomBytes(24).toString('base64url')
+            };
+            fs.writeFileSync(CONFIG_FILE, JSON.stringify(initialConfig, null, 4), { encoding: 'utf8', mode: 0o600 });
+            console.warn('[security] Generated a random admin password for first launch. Read config.json locally and change it after signing in.');
+            return normalizeConfig(initialConfig);
         }
+        try { fs.chmodSync(CONFIG_FILE, 0o600); } catch (e) { /* best effort on non-POSIX filesystems */ }
         const raw = fs.readFileSync(CONFIG_FILE, 'utf8');
         const config = JSON.parse(raw);
+        if (!config.password || config.password === 'admin') {
+            config.password = crypto.randomBytes(24).toString('base64url');
+            fs.writeFileSync(CONFIG_FILE, JSON.stringify(normalizeConfig(config), null, 4), { encoding: 'utf8', mode: 0o600 });
+            fs.chmodSync(CONFIG_FILE, 0o600);
+            console.warn('[security] Replaced the default admin password. Read the new password from config.json locally.');
+        }
         return normalizeConfig(config);
     } catch (e) {
         console.error('Config read error:', e.message);
-        return normalizeConfig(DEFAULT_CONFIG);
+        return normalizeConfig({
+            ...DEFAULT_CONFIG,
+            password: crypto.randomBytes(24).toString('base64url')
+        });
     }
 }
 
 function writeConfig(config) {
     try {
-        fs.writeFileSync(CONFIG_FILE, JSON.stringify(normalizeConfig(config), null, 4), 'utf8');
+        fs.writeFileSync(CONFIG_FILE, JSON.stringify(normalizeConfig(config), null, 4), { encoding: 'utf8', mode: 0o600 });
+        try { fs.chmodSync(CONFIG_FILE, 0o600); } catch (e) { /* best effort on non-POSIX filesystems */ }
         return true;
     } catch (e) {
         console.error('Config write error:', e.message);
@@ -241,7 +294,7 @@ function writeConfig(config) {
 function getPublicConfig(config) {
     return {
         map_provider: config.map_provider || 'osm',
-        google_maps_key: config.google_maps_key || '',
+        google_maps_key: config.map_provider === 'google' ? (config.google_maps_key || '') : '',
         site_title: config.site_title || '',
         site_footer: config.site_footer || '',
         default_language: LANGS.has(config.default_language) ? config.default_language : 'en',
@@ -642,7 +695,9 @@ function sendJSON(req, res, statusCode, data) {
         'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
         'Access-Control-Allow-Headers': 'Content-Type',
         'Cache-Control': 'no-cache',
-        'X-Content-Type-Options': 'nosniff'
+        'X-Content-Type-Options': 'nosniff',
+        'X-Frame-Options': 'SAMEORIGIN',
+        'Referrer-Policy': 'no-referrer'
     };
     if (origin) {
         try {
@@ -686,7 +741,11 @@ function readBody(req) {
 
 // ─── API Handler ───
 async function handleAPI(req, res, parsedUrl) {
-    const action = parsedUrl.query ? new URLSearchParams(parsedUrl.query).get('action') || '' : '';
+    const action = parsedUrl.searchParams
+        ? parsedUrl.searchParams.get('action') || ''
+        : parsedUrl.query
+            ? new URLSearchParams(parsedUrl.query).get('action') || ''
+            : '';
 
     // OPTIONS (CORS preflight)
     if (req.method === 'OPTIONS') {
@@ -714,14 +773,22 @@ async function handleAPI(req, res, parsedUrl) {
 
         // ── Login: verify password ──
         if (action === 'login') {
+            if (!canAttemptLogin(req)) {
+                return sendJSON(req, res, 429, {
+                    status: 'error',
+                    message: '登录尝试过于频繁，请 15 分钟后重试'
+                });
+            }
             const config = readConfig();
             if (input.password === (config.password || 'admin')) {
+                clearLoginFailures(req);
                 return sendJSON(req, res, 200, {
                     status: 'ok',
                     token: createSession(),
                     data: getPublicConfig(config)
                 });
             } else {
+                recordLoginFailure(req);
                 return sendJSON(req, res, 401, {
                     status: 'error',
                     message: '密码错误'
@@ -732,20 +799,22 @@ async function handleAPI(req, res, parsedUrl) {
         // ── Change password ──
         if (action === 'changepwd') {
             const config = readConfig();
-            if (input.current_password !== (config.password || 'admin')) {
+            const currentPassword = config.password || 'admin';
+            if (!isAuthenticated(input, config) && input.current_password !== currentPassword) {
                 return sendJSON(req, res, 401, {
                     status: 'error',
-                    message: '当前密码错误'
+                    message: '认证失败'
                 });
             }
-            if (!input.new_password) {
+            if (!input.new_password || String(input.new_password).length < 6 || String(input.new_password).length > 200) {
                 return sendJSON(req, res, 400, {
                     status: 'error',
-                    message: '新密码不能为空'
+                    message: '新密码长度需为 6-200 个字符'
                 });
             }
-            config.password = input.new_password;
+            config.password = String(input.new_password);
             if (writeConfig(config)) {
+                SESSIONS.clear();
                 return sendJSON(req, res, 200, { status: 'ok', message: '密码已更新' });
             } else {
                 return sendJSON(req, res, 500, { status: 'error', message: '写入配置文件失败' });
@@ -843,7 +912,10 @@ function serveStatic(req, res, filePath) {
             'Content-Type': contentType,
             'Cache-Control': ext === '.html' || ext === '.js' || ext === '.css'
                 ? 'no-cache'
-                : 'public, max-age=86400'
+                : 'public, max-age=86400',
+            'X-Content-Type-Options': 'nosniff',
+            'X-Frame-Options': 'SAMEORIGIN',
+            'Referrer-Policy': 'no-referrer'
         };
 
         if (isIndexHtml) {
@@ -865,7 +937,13 @@ function serveStatic(req, res, filePath) {
 
 // ─── Server ───
 const server = http.createServer(async (req, res) => {
-    const parsedUrl = url.parse(req.url);
+    let parsedUrl;
+    try {
+        parsedUrl = new URL(req.url || '/', `http://${req.headers.host || 'localhost'}`);
+    } catch (e) {
+        res.writeHead(400, { 'Content-Type': 'text/plain' });
+        return res.end('Bad Request');
+    }
     let pathname;
     try {
         pathname = decodeURIComponent(parsedUrl.pathname);

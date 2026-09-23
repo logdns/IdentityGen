@@ -2,6 +2,25 @@
 
 本文档用于从没有后台版本更新功能的旧版本迁移到新版。
 
+## 迁移到 v1.2.12
+
+v1.2.12 加强首次安装凭据、管理会话和 HTTP 响应安全。
+
+### 变更内容
+
+- 首次启动生成随机管理密码并以仅服务账户可读写的权限创建 `config.json`；升级保留现有密码。
+- 每个来源地址在 15 分钟内最多允许 10 次失败登录，超出返回 HTTP 429。
+- 管理员修改密码后立即撤销所有现存会话。
+- 未选择 Google Maps 时，公开配置不再返回 Google Maps API Key。
+- API 与静态响应增加 `X-Frame-Options`、`X-Content-Type-Options` 和 `Referrer-Policy`。
+- 请求 URL 使用 WHATWG `URL` API 解析，避免旧 `url.parse()` 的弃用警告。
+
+### 升级注意
+
+升级保留现有非默认管理密码；如果检测到旧默认密码 `admin`，服务启动时会自动轮换为随机密码。请从服务器本机 `config.json` 读取轮换后的密码。生产环境必须通过 HTTPS 反向代理访问管理后台，不能将 Node.js HTTP 端口直接暴露到公网。
+
+首次安装的随机密码写入服务器本机 `config.json`；请在服务器安全读取。配置文件包含凭据和 API Key，不应通过 Web、工单或公开日志传递。
+
 ## 旧数据迁移总览
 
 IdentityGen 的后台数据都保存在服务器运行时文件 `config.json` 中。迁移旧版本时，核心原则是：**更新代码，不覆盖生产 `config.json`**。
@@ -93,7 +112,7 @@ cp config.json config.fresh.json
 cp ../identitygen/config.json ./config.json
 ```
 
-不要把 `config.example.json` 改名后覆盖生产 `config.json`。`config.example.json` 只是模板，会包含默认密码 `admin`，覆盖后会丢失你的后台密码、API Key、广告位和捐赠地址。
+不要把 `config.example.json` 改名后覆盖生产 `config.json`。它只是模板，覆盖后会丢失你的后台密码、API Key、广告位和捐赠地址。首次启动会生成随机管理密码；升级会保留已有非默认密码，并自动轮换旧默认密码 `admin`。
 
 ### 升级后验证
 
@@ -173,7 +192,7 @@ v1.2.1 是针对 v1.2.0 的兼容修复版本，重点解决前台默认语言�
 - 前端资源加入版本参数，服务端对 `app.js` 和 `style.css` 返回 `no-cache`，避免更新后浏览器继续加载旧脚本。
 - 后台所有需要认证的接口同时发送会话 token 和兼容密码字段，兼容旧 `api.php` 或旧 Node 进程。
 - 后台“系统版本”调整为在线更新面板，显示当前版本、远端版本、状态、分支、远端仓库、差异和更新日志。
-- 当前原生前后台 UI 调整为 HeroUI 风格，但仍保持零依赖部署。真正使用 HeroUI React 组件需要后续迁移到 React/Tailwind 构建链。
+- 当前原生前后台 UI 调整为 Arco Design 风格，使用紧凑间距、中性灰阶、主色蓝和扁平卡片，同时保持零依赖部署；没有引入 React 或构建链。
 
 ### 升级后建议
 

@@ -8,6 +8,7 @@ const LANG_EXPLICIT_KEY = 'idgen_lang_explicit';
 
 let currentLang = 'en';
 let currentIdentity = {};
+let generationSeq = 0;
 let currentTheme = localStorage.getItem('idgen_theme') || 'light';
 const AD_STORAGE_PREFIX = 'identitygen-ad:v1:';
 const AD_WRITE_SETTLE_MS = 2500;
@@ -71,6 +72,17 @@ function isAdRenderActive(container, renderId) {
 
 function wait(ms) {
     return new Promise(resolve => setTimeout(resolve, ms));
+}
+
+async function fetchWithTimeout(resource, options = {}, timeout = 8000) {
+    if (typeof AbortController === 'undefined') return fetch(resource, options);
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), timeout);
+    try {
+        return await fetch(resource, { ...options, signal: controller.signal });
+    } finally {
+        clearTimeout(timer);
+    }
 }
 
 function hasRenderedAdContent(container) {
@@ -292,6 +304,7 @@ const I18N = {
         donation_note: '感谢你的捐赠支持。',
         donation_copy: '复制',
         donation_copied: '✅ 地址已复制',
+        copy_failed: '复制失败，请手动复制',
     },
     'zh-TW': {
         nav_us: '美國', nav_uk: '英國',
@@ -322,6 +335,7 @@ const I18N = {
         donation_note: '感謝你的捐贈支持。',
         donation_copy: '複製',
         donation_copied: '✅ 地址已複製',
+        copy_failed: '複製失敗，請手動複製',
     },
     en: {
         nav_us: 'US', nav_uk: 'UK',
@@ -352,6 +366,7 @@ const I18N = {
         donation_note: 'Thank you for supporting this project.',
         donation_copy: 'Copy',
         donation_copied: '✅ Address copied',
+        copy_failed: 'Copy failed. Please copy it manually.',
     },
     ja: {
         nav_us: 'US', nav_uk: 'UK',
@@ -382,6 +397,7 @@ const I18N = {
         donation_note: 'プロジェクト支援ありがとうございます。',
         donation_copy: 'コピー',
         donation_copied: '✅ アドレスをコピーしました',
+        copy_failed: 'コピーに失敗しました。手動でコピーしてください',
     },
 };
 
@@ -507,8 +523,9 @@ function renderDonation() {
         btn.type = 'button';
         btn.className = 'donation-copy';
         btn.textContent = t('donation_copy');
-        btn.addEventListener('click', () => {
-            navigator.clipboard.writeText(item.address).then(() => showToast(t('donation_copied')));
+        btn.addEventListener('click', async () => {
+            const copied = await copyText(item.address);
+            showToast(copied ? t('donation_copied') : t('copy_failed'));
         });
 
         row.append(meta, address, btn);
@@ -665,7 +682,7 @@ async function fetchRealAddress(coordsArray) {
         try {
             const loc = getRandomCoord(coordsArray);
             const url = `https://nominatim.openstreetmap.org/reverse?format=json&lat=${loc.lat}&lon=${loc.lng}&zoom=18&addressdetails=1&accept-language=en`;
-            const resp = await fetch(url, { headers: { 'User-Agent': 'IdentityGen/1.0', 'Accept-Language': 'en-US,en;q=0.9' } });
+            const resp = await fetchWithTimeout(url, { headers: { 'User-Agent': 'IdentityGen/1.0', 'Accept-Language': 'en-US,en;q=0.9' } }, 7000);
             const data = await resp.json();
             if (data && data.address && data.address.road) {
                 return {
@@ -687,6 +704,7 @@ async function fetchRealAddress(coordsArray) {
 // Generate Identity
 // ═══════════════════════════════════════
 async function generateIdentity() {
+    const generationId = ++generationSeq;
     const btn = $('gen-btn');
     const loading = $('loading');
     const grid = $('info-grid');
@@ -697,13 +715,17 @@ async function generateIdentity() {
     grid.style.pointerEvents = 'none';
 
     try {
-        if (currentCountry === 'us') await generateUS();
-        else await generateUK();
+        if (currentCountry === 'us') await generateUS(generationId);
+        else await generateUK(generationId);
     } catch (e) {
-        console.error('Generate error:', e);
-        showToast(t('api_error'));
-        buildLocalFallback();
+        if (generationId === generationSeq) {
+            console.error('Generate error:', e);
+            showToast(t('api_error'));
+            buildLocalFallback();
+        }
     }
+
+    if (generationId !== generationSeq) return;
 
     btn.classList.remove('loading');
     loading.style.display = 'none';
@@ -717,7 +739,7 @@ async function generateIdentity() {
     });
 }
 
-async function generateUS() {
+async function generateUS(generationId) {
     const selVal = $('region-select').value;
     const st = selVal ? DATA.us.states.find(s => s.abbr === selVal) : pick(DATA.us.states);
     const abbr = st.abbr;
@@ -727,6 +749,8 @@ async function generateUS() {
         fetchPerson('en_US'),
         fetchRealAddress(STATE_COORDS[abbr])
     ]);
+
+    if (generationId !== generationSeq) return;
 
     const person = personData || localPerson('us');
     const realAddr = addrData;
@@ -764,7 +788,7 @@ async function generateUS() {
     updateMap(fullAddr);
 }
 
-async function generateUK() {
+async function generateUK(generationId) {
     const selVal = $('region-select').value;
     const region = selVal || pick(DATA.uk.regions);
 
@@ -772,6 +796,8 @@ async function generateUK() {
         fetchPerson('en_GB'),
         fetchRealAddress(REGION_COORDS[region])
     ]);
+
+    if (generationId !== generationSeq) return;
 
     const person = personData || localPerson('uk');
     const realAddr = addrData;
@@ -812,7 +838,7 @@ async function generateUK() {
 // ═══════════════════════════════════════
 async function fetchPerson(locale) {
     try {
-        const resp = await fetch(`https://fakerapi.it/api/v2/persons?_quantity=1&_locale=${locale}`);
+        const resp = await fetchWithTimeout(`https://fakerapi.it/api/v2/persons?_quantity=1&_locale=${locale}`, {}, 7000);
         const json = await resp.json();
         if (json.status === 'OK' && json.data && json.data[0]) return json.data[0];
     } catch (e) { /* fallback */ }
@@ -940,10 +966,36 @@ function genNI() {
 // ═══════════════════════════════════════
 // Copy
 // ═══════════════════════════════════════
-function copyField(el) {
+async function copyText(value) {
+    const text = String(value || '');
+    if (!text) return false;
+    try {
+        if (navigator.clipboard && typeof navigator.clipboard.writeText === 'function') {
+            await navigator.clipboard.writeText(text);
+            return true;
+        }
+    } catch (e) { /* fall back to the legacy clipboard API */ }
+
+    try {
+        const textarea = document.createElement('textarea');
+        textarea.value = text;
+        textarea.setAttribute('readonly', '');
+        textarea.style.position = 'fixed';
+        textarea.style.opacity = '0';
+        document.body.appendChild(textarea);
+        textarea.select();
+        const copied = document.execCommand('copy');
+        textarea.remove();
+        return copied;
+    } catch (e) {
+        return false;
+    }
+}
+
+async function copyField(el) {
     const val = el.querySelector('.card-value').textContent;
     if (!val || val === '—') return;
-    navigator.clipboard.writeText(val).then(() => {
+    if (await copyText(val)) {
         showToast(t('toast_copied'));
         el.classList.add('copied');
         const badge = el.querySelector('.card-badge');
@@ -952,10 +1004,12 @@ function copyField(el) {
             el.classList.remove('copied');
             if (badge) badge.textContent = t('click_copy');
         }, 1500);
-    });
+    } else {
+        showToast(t('copy_failed'));
+    }
 }
 
-function copyAll() {
+async function copyAll() {
     const ci = currentIdentity;
     const sfx = currentCountry === 'uk' ? '_uk' : '_us';
     const gMap = { male: 'gender_male', female: 'gender_female', other: 'gender_other' };
@@ -973,7 +1027,7 @@ function copyAll() {
         `${t('label_website')}: ${ci.website}`,
         `${t('label_fulladdr')}: ${ci.fullAddress}`
     ].join('\n');
-    navigator.clipboard.writeText(lines).then(() => showToast(t('toast_all')));
+    showToast(await copyText(lines) ? t('toast_all') : t('copy_failed'));
 }
 
 function showToast(msg) {

@@ -1,5 +1,5 @@
 {
-    "password": "admin",
+    "password": "REPLACE_WITH_A_STRONG_RANDOM_PASSWORD",
     "map_provider": "osm",
     "google_maps_key": "",
     "site_title": "",

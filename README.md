@@ -43,8 +43,8 @@
 - ₿ **加密币捐赠** — 后台配置前台底部捐赠地址，支持一键复制
 - 🌐 **多语言选择** — 默认英文，支持英文、简体中文、繁体中文、日文
 - ⬆️ **后台更新** — 后台检查 GitHub 版本并执行安全更新
-- 🧩 **HeroUI 风格界面** — 保持零依赖部署，同时采用 HeroUI 风格的卡片、按钮和表单视觉
-- 🎨 **高级 UI** — Glassmorphism 设计、粒子动画背景、微交互动效
+- 🧩 **Arco Design 风格界面** — 保持零依赖部署，采用 Arco 的紧凑间距、中性表面、主色按钮和响应式卡片布局
+- 🎨 **轻量 UI** — 前台和后台统一使用 CSS 变量、卡片、状态提示和暗色主题，不依赖 React 或构建工具
 - 🔄 **真实地址** — 通过 OpenStreetMap Nominatim API 获取真实地址数据
 - 👤 **真实姓名** — 通过 FakerAPI 获取真实格式的姓名和个人信息
 
@@ -55,7 +55,7 @@
 | 层级 | 技术 |
 |------|------|
 | 前端结构 | HTML5 |
-| 样式 | CSS3（CSS Variables、Glassmorphism） |
+| 样式 | CSS3（CSS Variables、Arco Design 风格） |
 | 逻辑 | 原生 JavaScript（ES2017+） |
 | 字体 | Google Fonts（Inter、JetBrains Mono） |
 | 后端配置 | Node.js（零依赖轻量服务器，读写 JSON 配置文件） |
@@ -114,6 +114,8 @@ PORT=8080 node server.js
 
 > 💡 **前提条件**：仅需安装 [Node.js](https://nodejs.org/)（v14+）。无需 `npm install`，零第三方依赖。
 
+首次启动会生成随机管理密码并写入服务器本机 `config.json`，请安全读取并保存。升级时保留现有非默认密码；仍使用旧默认密码 `admin` 的部署会在启动后自动轮换为随机密码，需从服务器本机 `config.json` 读取。生产环境不要将 Node.js 端口直接暴露到公网，管理后台必须经 HTTPS 反向代理访问。
+
 ---
 
 ## ⚙️ 配置说明
@@ -122,7 +124,7 @@ PORT=8080 node server.js
 
 | 配置项 | 说明 | 默认值 |
 |--------|------|--------|
-| 管理密码 | 后台登录密码 | `admin` |
+| 管理密码 | 后台登录密码 | 首次启动生成随机密码；升级时保留现有密码 |
 | 地图服务商 | 基础嵌入模式 / Google Maps API | 基础嵌入模式 |
 | Google Maps API Key | 使用 Google Maps Embed API 时需要 | 无（使用基础嵌入）|
 | 网站标题 | 自定义 Logo 文字 | `IdentityGen` |
@@ -181,6 +183,8 @@ pm2 start server.js --name identitygen -- 3002
 pm2 save
 pm2 startup
 ```
+
+生产环境必须通过 HTTPS 反向代理访问，建议 Node.js 仅监听回环接口。直接以 HTTP 暴露服务会明文传输管理密码和会话凭据。
 
 需要的文件：
 ```
@@ -371,8 +375,8 @@ location / {
 1. 打开浏览器访问你的域名或 IP：`https://id.example.com`
 2. 确认前台页面正常加载
 3. 点击右上角 ⚙️ 按钮或访问 `https://id.example.com/admin.html`
-4. 使用默认密码 `admin` 登录后台
-5. **⚠️ 重要：立即修改默认密码！**
+4. 首次安装从服务器 `config.json` 读取随机密码；升级部署使用现有密码
+5. 旧默认密码 `admin` 会自动轮换，轮换后从服务器 `config.json` 读取新密码
 
 #### 常见宝塔部署问题
 
@@ -381,7 +385,7 @@ location / {
 | 页面显示 404 | 检查 Node.js 服务是否正在运行，Nginx 反向代理是否配置正确 |
 | 样式/脚本未加载 | 检查 `style.css`、`app.js`、`data.js` 是否在同一目录 |
 | SSL 证书申请失败 | 确认域名已正确解析到服务器 IP，检查 80 端口是否开放 |
-| 后台无法登录 | 默认密码为 `admin`，确认 Node.js 服务正在运行 |
+| 后台无法登录 | 首次安装从服务器本机 `config.json` 读取生成的密码；升级保留已有强密码，旧默认密码会自动轮换；确认 Node.js 服务正在运行 |
 | 修改密码后无法登录 | 确认 `config.json` 不被 Git 追踪（已在 `.gitignore` 中），避免 `git pull` 覆盖配置 |
 | 后台保存失败 | 检查 `config.json` 文件权限，确保 Node.js 进程有写入权限 |
 | 地图不显示 | 检查是否可以正常访问 Google Maps；如需 API Key，在后台设置中配置 |
@@ -440,8 +444,8 @@ pm2 restart identitygen
 ### Q: 数据存储在哪里？
 **A:** 后台配置（密码、API Key、地图服务商、网站标题、页脚、默认语言、广告位、捐赠地址）存储在服务端的 `config.json` 文件中（首次运行自动创建，不纳入版本控制），管理员在后台修改后所有用户立即生效。主题偏好（亮色/暗色）和用户手动选择的语言仍存储在浏览器 `localStorage` 中。
 
-### Q: 默认管理密码是什么？
-**A:** 默认密码为 `admin`，首次登录后请立即修改。
+### Q: 首次安装的管理密码是什么？
+**A:** 首次启动会生成随机密码并写入服务器本机 `config.json`。升级时保留已有非默认密码；旧默认密码 `admin` 会自动轮换为随机密码。
 
 ### Q: 修改密码后登录提示错误？
 **A:** 请确认 `config.json` 已加入 `.gitignore` 且不被 Git 追踪。如果 `config.json` 仍被 Git 管理，执行 `git pull` 更新代码时会覆盖配置文件，导致密码被重置。执行以下命令修复：
