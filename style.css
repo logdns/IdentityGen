@@ -1084,7 +1084,9 @@ main { max-width: 1120px; padding: 40px 24px 64px; }
 .info-grid { grid-template-columns: repeat(3,1fr); gap: 12px; }
 .info-card { min-height: 94px; padding: 16px; border-radius: 6px; box-shadow: var(--card-shadow); }
 .info-card:hover { transform: translateY(-1px); border-color: #bedaff; box-shadow: 0 4px 12px rgba(22,93,255,.12); }
-.info-card::after { display: none; } .info-card.span-2 { grid-column: span 2; }
+.info-card::after { display: none; }
+.info-card.span-2 { grid-column: span 2; }
+.info-card.span-3 { grid-column: 1 / -1; }
 .card-icon { background: var(--accent-soft); border-radius: 4px; } .card-label { color: var(--text-muted); font-size: 12px; }
 .card-value { color: var(--text); font-size: 15px; } .card-badge { color: var(--accent); font-size: 12px; }
 .card-highlight { background: #f7faff; border-color: #bedaff; } body.dark-mode .card-highlight { background: rgba(22,93,255,.1); }
@@ -1095,5 +1097,5 @@ main { max-width: 1120px; padding: 40px 24px 64px; }
 .map-section h2,.donation-header h2 { font-size: 18px; font-weight: 600; } .map-frame { border-radius: 4px; border-color: var(--border); }
 .ad-slot { border-radius: 4px; } .donation-item { border-radius: 4px; border-color: var(--border); }
 footer { border-top: 1px solid var(--border); background: var(--bg-card); }
-@media (max-width:760px) { header { padding: 0 16px; } .header-actions { gap: 6px; } .lang-select-wrap { padding: 0 6px; } .info-grid { grid-template-columns: 1fr 1fr; } .info-card.span-2 { grid-column: span 2; } }
-@media (max-width:520px) { main { padding: 28px 16px 48px; } .country-btn { padding: 6px 8px; } .country-flag { display: none; } .info-grid { grid-template-columns: 1fr; } .info-card.span-2 { grid-column: span 1; } .controls-bar { display: block; } .select-group { max-width: none; margin-bottom: 12px; } .gen-btn { width: 100%; } }
+@media (max-width:760px) { header { padding: 0 16px; } .header-actions { gap: 6px; } .lang-select-wrap { padding: 0 6px; } .info-grid { grid-template-columns: 1fr 1fr; } .info-card.span-2,.info-card.span-3,#card-city { grid-column: span 2; } #card-state { grid-column: span 1; } }
+@media (max-width:520px) { main { padding: 28px 16px 48px; } .country-btn { padding: 6px 8px; } .country-flag { display: none; } .info-grid { grid-template-columns: 1fr; } .info-card.span-2,.info-card.span-3,#card-city,#card-state { grid-column: span 1; } .controls-bar { display: block; } .select-group { max-width: none; margin-bottom: 12px; } .gen-btn { width: 100%; } }

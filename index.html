@@ -17,7 +17,7 @@
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@fontsource/jetbrains-mono@5/400.min.css">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@fontsource/jetbrains-mono@5/500.min.css">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@fontsource/jetbrains-mono@5/600.min.css">
-    <link rel="stylesheet" href="style.css?v=1.2.15">
+    <link rel="stylesheet" href="style.css?v=1.2.16">
 </head>
 
 <body>
@@ -146,11 +146,11 @@
                 </div>
                 <div class="card-badge" data-i18n="click_copy">Copy</div>
             </div>
-            <div class="info-card" id="card-email" onclick="copyField(this)">
-                <div class="card-icon">✉️</div>
+            <div class="info-card" id="card-ssn" onclick="copyField(this)">
+                <div class="card-icon">🔐</div>
                 <div class="card-body">
-                    <div class="card-label" data-i18n="label_email">Email</div>
-                    <div class="card-value" id="val-email">—</div>
+                    <div class="card-label" data-i18n="label_ssn">SSN</div>
+                    <div class="card-value" id="val-ssn">—</div>
                 </div>
                 <div class="card-badge" data-i18n="click_copy">Copy</div>
             </div>
@@ -170,7 +170,7 @@
                 </div>
                 <div class="card-badge" data-i18n="click_copy">Copy</div>
             </div>
-            <div class="info-card" id="card-state" onclick="copyField(this)">
+            <div class="info-card span-2" id="card-state" onclick="copyField(this)">
                 <div class="card-icon">📍</div>
                 <div class="card-body">
                     <div class="card-label" data-i18n="label_state">State</div>
@@ -186,24 +186,8 @@
                 </div>
                 <div class="card-badge" data-i18n="click_copy">Copy</div>
             </div>
-            <div class="info-card" id="card-ssn" onclick="copyField(this)">
-                <div class="card-icon">🔐</div>
-                <div class="card-body">
-                    <div class="card-label" data-i18n="label_ssn">SSN</div>
-                    <div class="card-value" id="val-ssn">—</div>
-                </div>
-                <div class="card-badge" data-i18n="click_copy">Copy</div>
-            </div>
-            <div class="info-card" id="card-website" onclick="copyField(this)">
-                <div class="card-icon">🌐</div>
-                <div class="card-body">
-                    <div class="card-label" data-i18n="label_website">Website</div>
-                    <div class="card-value" id="val-website">—</div>
-                </div>
-                <div class="card-badge" data-i18n="click_copy">Copy</div>
-            </div>
             <!-- Full Address Highlight -->
-            <div class="info-card span-2 card-highlight" id="card-full" onclick="copyField(this)">
+            <div class="info-card span-3 card-highlight" id="card-full" onclick="copyField(this)">
                 <div class="card-icon">📋</div>
                 <div class="card-body">
                     <div class="card-label" data-i18n="label_fulladdr">Full Address</div>
@@ -263,8 +247,8 @@
         </div>
     </footer>
 
-    <script src="data.js?v=1.2.15"></script>
-    <script src="app.js?v=1.2.15"></script>
+    <script src="data.js?v=1.2.16"></script>
+    <script src="app.js?v=1.2.16"></script>
 </body>
 
 </html>

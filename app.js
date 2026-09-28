@@ -283,13 +283,13 @@ const I18N = {
         select_label: '选择地区', generate_btn: '生成新身份',
         loading_text: '正在获取真实地址数据...',
         label_name: '姓名', label_gender: '性别', label_dob: '出生日期',
-        label_phone: '电话号码', label_email: '电子邮箱',
+        label_phone: '电话号码',
         label_street: '街道地址', label_city: '城市',
         label_state_us: '州', label_zip_us: '邮政编码', label_ssn_us: '社会安全号码',
         label_state_uk: '地区', label_zip_uk: '邮编', label_ssn_uk: '国民保险号码',
         label_state_de: '联邦州', label_zip_de: '邮政编码', label_ssn_de: '证件号码',
         label_state_tr: '省 / 地区', label_zip_tr: '邮政编码', label_ssn_tr: '证件号码',
-        label_fulladdr: '完整地址', label_website: '个人网站',
+        label_fulladdr: '完整地址',
         click_copy: '点击复制', copy_all: '复制全部信息',
         map_title: '📍 地图定位',
         footer: '© 2026 IdentityGen.Xyz',
@@ -316,13 +316,13 @@ const I18N = {
         select_label: '選擇地區', generate_btn: '產生新身分',
         loading_text: '正在取得真實地址資料...',
         label_name: '姓名', label_gender: '性別', label_dob: '出生日期',
-        label_phone: '電話號碼', label_email: '電子郵件',
+        label_phone: '電話號碼',
         label_street: '街道地址', label_city: '城市',
         label_state_us: '州', label_zip_us: '郵遞區號', label_ssn_us: '社會安全號碼',
         label_state_uk: '地區', label_zip_uk: '郵遞區號', label_ssn_uk: '國民保險號碼',
         label_state_de: '聯邦州', label_zip_de: '郵遞區號', label_ssn_de: '證件號碼',
         label_state_tr: '省 / 地區', label_zip_tr: '郵遞區號', label_ssn_tr: '證件號碼',
-        label_fulladdr: '完整地址', label_website: '個人網站',
+        label_fulladdr: '完整地址',
         click_copy: '點擊複製', copy_all: '複製全部資訊',
         map_title: '📍 地圖定位',
         footer: '© 2026 IdentityGen.Xyz',
@@ -349,13 +349,13 @@ const I18N = {
         select_label: 'Region', generate_btn: 'Generate New',
         loading_text: 'Fetching real address data...',
         label_name: 'Full Name', label_gender: 'Gender', label_dob: 'Date of Birth',
-        label_phone: 'Phone', label_email: 'Email',
+        label_phone: 'Phone',
         label_street: 'Street Address', label_city: 'City',
         label_state_us: 'State', label_zip_us: 'ZIP Code', label_ssn_us: 'SSN',
         label_state_uk: 'Region', label_zip_uk: 'Postcode', label_ssn_uk: 'NI Number',
         label_state_de: 'Federal State', label_zip_de: 'Postcode', label_ssn_de: 'ID Number',
         label_state_tr: 'Province / Region', label_zip_tr: 'Postcode', label_ssn_tr: 'ID Number',
-        label_fulladdr: 'Full Address', label_website: 'Website',
+        label_fulladdr: 'Full Address',
         click_copy: 'Copy', copy_all: 'Copy All Info',
         map_title: '📍 Map Location',
         footer: '© 2026 IdentityGen.Xyz',
@@ -382,13 +382,13 @@ const I18N = {
         select_label: '地域', generate_btn: '新しく生成',
         loading_text: '実在形式の住所データを取得中...',
         label_name: '氏名', label_gender: '性別', label_dob: '生年月日',
-        label_phone: '電話番号', label_email: 'メール',
+        label_phone: '電話番号',
         label_street: '住所', label_city: '市区町村',
         label_state_us: '州', label_zip_us: '郵便番号', label_ssn_us: 'SSN',
         label_state_uk: '地域', label_zip_uk: '郵便番号', label_ssn_uk: 'NI 番号',
         label_state_de: '連邦州', label_zip_de: '郵便番号', label_ssn_de: 'ID 番号',
         label_state_tr: '県 / 地域', label_zip_tr: '郵便番号', label_ssn_tr: 'ID 番号',
-        label_fulladdr: '完全な住所', label_website: 'ウェブサイト',
+        label_fulladdr: '完全な住所',
         click_copy: 'コピー', copy_all: 'すべてコピー',
         map_title: '📍 地図',
         footer: '© 2026 IdentityGen.Xyz',
@@ -821,11 +821,10 @@ async function generateUS(generationId) {
         name: `${person.firstname} ${person.lastname}`,
         genderRaw: person.gender || (Math.random() < 0.5 ? 'male' : 'female'),
         dob: person.birthday || genDOB(randInt(18, 75)),
-        phone, email: person.email || genEmail(person.firstname, person.lastname, 'us'),
+        phone,
         address: street, city,
         state: stateLabel, zip,
         ssn: (!selectedState && randomUser && randomUser.id) || genSSN(),
-        website: person.website || '—',
         fullAddress: fullAddr,
         lat: selectedAddr ? selectedAddr.lat : null,
         lng: selectedAddr ? selectedAddr.lng : null
@@ -871,10 +870,9 @@ async function generateUK(generationId) {
         name: `${person.firstname} ${person.lastname}`,
         genderRaw: person.gender || (Math.random() < 0.5 ? 'male' : 'female'),
         dob: person.birthday || genDOB(randInt(18, 75)),
-        phone, email: person.email || genEmail(person.firstname, person.lastname, 'uk'),
+        phone,
         address: street, city, state: region, zip,
         ssn: (!selectedRegion && randomUser && randomUser.id) || genNI(),
-        website: person.website || '—',
         fullAddress: fullAddr,
         lat: selectedAddr ? selectedAddr.lat : null,
         lng: selectedAddr ? selectedAddr.lng : null
@@ -934,10 +932,8 @@ async function generateRegionalIdentity(country, generationId) {
         genderRaw: person.gender || (Math.random() < 0.5 ? 'male' : 'female'),
         dob: person.birthday || genDOB(randInt(18, 75)),
         phone,
-        email: person.email || genEmail(person.firstname, person.lastname, country),
         address: street, city, state: region, zip,
         ssn: (!selectedRegion && randomUser && randomUser.id) || config.id(),
-        website: person.website || '—',
         fullAddress: fullAddr,
         lat: selectedAddr ? selectedAddr.lat : null,
         lng: selectedAddr ? selectedAddr.lng : null
@@ -952,7 +948,7 @@ async function generateRegionalIdentity(country, generationId) {
 // ═══════════════════════════════════════
 async function fetchRandomUser(nationality) {
     try {
-        const fields = 'gender,name,location,email,dob,phone,cell,id,nat';
+        const fields = 'gender,name,location,dob,phone,cell,id,nat';
         const url = `https://randomuser.me/api/1.4/?nat=${encodeURIComponent(nationality)}&results=1&inc=${fields}&noinfo`;
         const resp = await fetchWithTimeout(url, {}, 7000);
         if (!resp.ok) return null;
@@ -981,9 +977,7 @@ async function fetchRandomUser(nationality) {
                 firstname: String(user.name.first || ''),
                 lastname: String(user.name.last || ''),
                 gender: user.gender === 'male' || user.gender === 'female' ? user.gender : 'other',
-                birthday: user.dob && user.dob.date ? String(user.dob.date).slice(0, 10) : '',
-                email: String(user.email || ''),
-                website: '—'
+                birthday: user.dob && user.dob.date ? String(user.dob.date).slice(0, 10) : ''
             },
             address,
             phone: String(user.phone || user.cell || ''),
@@ -1016,9 +1010,7 @@ function localPerson(country) {
         firstname: pick(set.firstNames[g]),
         lastname: pick(set.lastNames),
         gender: g,
-        birthday: genDOB(randInt(18, 75)),
-        email: null,
-        website: '—'
+        birthday: genDOB(randInt(18, 75))
     };
 }
 
@@ -1032,9 +1024,8 @@ function buildLocalFallback() {
         currentIdentity = {
             name: `${p.firstname} ${p.lastname}`, genderRaw: p.gender,
             dob: p.birthday, phone: genUSPhone(a),
-            email: genEmail(p.firstname, p.lastname, 'us'),
             address: street, city, state: `${st.full} (${a})`, zip,
-            ssn: genSSN(), website: '—',
+            ssn: genSSN(),
             fullAddress: `${street}, ${city}, ${st.full} ${a}, ${zip}`
         };
     } else if (currentCountry === 'uk') {
@@ -1046,9 +1037,8 @@ function buildLocalFallback() {
         currentIdentity = {
             name: `${p.firstname} ${p.lastname}`, genderRaw: p.gender,
             dob: p.birthday, phone: genUKPhone(region),
-            email: genEmail(p.firstname, p.lastname, 'uk'),
             address: street, city, state: region, zip,
-            ssn: genNI(), website: '—',
+            ssn: genNI(),
             fullAddress: `${street}, ${city}, ${region}, ${zip}`
         };
     } else {
@@ -1062,9 +1052,8 @@ function buildLocalFallback() {
         currentIdentity = {
             name: `${p.firstname} ${p.lastname}`, genderRaw: p.gender,
             dob: p.birthday, phone: config.phone(),
-            email: genEmail(p.firstname, p.lastname, country),
             address: street, city, state: region, zip,
-            ssn: config.id(), website: '—',
+            ssn: config.id(),
             fullAddress: `${street}, ${zip} ${city}, ${region}, ${config.countryName}`
         };
     }
@@ -1079,13 +1068,11 @@ function renderIdentity() {
     $('val-gender').textContent = t(gMap[ci.genderRaw] || 'gender_other');
     $('val-dob').textContent = ci.dob;
     $('val-phone').textContent = ci.phone;
-    $('val-email').textContent = ci.email;
     $('val-address').textContent = ci.address;
     $('val-city').textContent = ci.city;
     $('val-state').textContent = ci.state;
     $('val-zip').textContent = ci.zip;
     $('val-ssn').textContent = ci.ssn;
-    $('val-website').textContent = ci.website;
     $('val-fulladdr').textContent = ci.fullAddress;
 }
 
@@ -1128,26 +1115,6 @@ function genDOB(age) {
 }
 function genUSZip() { return String(randInt(10000, 99999)); }
 function genSSN() { return `${randInt(100, 999)}-${randInt(10, 99)}-${randInt(1000, 9999)}`; }
-function normalizeEmailPart(value) {
-    return String(value || '')
-        .normalize('NFKD')
-        .replace(/[\u0300-\u036f]/g, '')
-        .replace(/ß/g, 'ss')
-        .replace(/ı/g, 'i')
-        .toLowerCase()
-        .replace(/[^a-z0-9]/g, '');
-}
-function genEmail(fn, ln, country) {
-    const domains = {
-        us: ['gmail.com', 'yahoo.com', 'outlook.com', 'hotmail.com', 'icloud.com'],
-        uk: ['gmail.com', 'yahoo.co.uk', 'outlook.com', 'hotmail.co.uk', 'btinternet.com'],
-        de: ['gmail.com', 'web.de', 'gmx.de', 'outlook.de', 't-online.de'],
-        tr: ['gmail.com', 'outlook.com', 'yandex.com.tr', 'turk.net', 'hotmail.com']
-    }[country] || ['gmail.com', 'outlook.com'];
-    const first = normalizeEmailPart(fn) || 'user';
-    const last = normalizeEmailPart(ln) || 'name';
-    return `${first}.${last}${randInt(1, 999)}@${pick(domains)}`;
-}
 function genUSPhone(st) {
     const codes = DATA.us.areaCodes[st] || ['555'];
     return `+1 (${pick(codes)}) ${randInt(200, 899)}-${String(randInt(1000, 9999))}`;
@@ -1247,13 +1214,11 @@ async function copyAll() {
         `${t('label_gender')}: ${t(gMap[ci.genderRaw] || 'gender_other')}`,
         `${t('label_dob')}: ${ci.dob}`,
         `${t('label_phone')}: ${ci.phone}`,
-        `${t('label_email')}: ${ci.email}`,
         `${t('label_street')}: ${ci.address}`,
         `${t('label_city')}: ${ci.city}`,
         `${t('label_state' + sfx)}: ${ci.state}`,
         `${t('label_zip' + sfx)}: ${ci.zip}`,
         `${t('label_ssn' + sfx)}: ${ci.ssn}`,
-        `${t('label_website')}: ${ci.website}`,
         `${t('label_fulladdr')}: ${ci.fullAddress}`
     ].join('\n');
     showToast(await copyText(lines) ? t('toast_all') : t('copy_failed'));
