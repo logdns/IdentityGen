@@ -273,7 +273,11 @@ header {
   border-radius: var(--radius-sm);
   padding: 4px;
   border: 1px solid var(--border);
+  overflow-x: auto;
+  scrollbar-width: none;
 }
+
+.country-switcher::-webkit-scrollbar { display: none; }
 
 .country-btn {
   display: flex;

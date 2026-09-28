@@ -1,6 +1,6 @@
 # IdentityGen — 随机身份信息生成器
 
-> 🌐 一键生成真实格式的美国（US）和英国（UK）个人身份信息，支持地图定位、一键复制和多语言切换。
+> 🌐 一键生成真实格式的美国（US）、英国（UK）、德国（DE）和土耳其（TR）个人身份信息，支持地图定位、一键复制和多语言切换。
 
 [![GitHub](https://img.shields.io/badge/GitHub-logdns%2FIdentityGen-181717?style=flat&logo=github)](https://github.com/logdns/IdentityGen)
 ![HTML](https://img.shields.io/badge/HTML5-E34F26?style=flat&logo=html5&logoColor=white)
@@ -33,6 +33,8 @@
 
 - 🇺🇸 **美国身份生成** — 真实州/城市、SSN、电话号码、邮编
 - 🇬🇧 **英国身份生成** — 真实地区/城市、NI Number、邮编  
+- 🇩🇪 **德国身份生成** — 联邦州、城市、德国地址格式、电话和邮编
+- 🇹🇷 **土耳其身份生成** — 地区、城市、土耳其地址格式、电话和邮编
 - 🗺️ **地图定位** — 基于 Google Maps 嵌入显示真实地理位置
 - 📋 **一键复制** — 单项复制或批量复制全部信息
 - 🌐 **多语言界面** — 默认英文，支持英文、简体中文、繁体中文、日文
@@ -82,7 +84,7 @@ identitygen/
 │   └── MIGRATION.md     # 旧版本迁移指南
 ├── style.css            # 全局样式 — 亮色/暗色主题
 ├── app.js               # 主逻辑 — 生成、i18n、地图、粒子动画
-├── data.js              # 静态数据 — 美国/英国州、城市、街道、姓名等
+├── data.js              # 静态数据 — US/UK/DE/TR 地区、城市、街道、姓名等
 └── README.md            # 项目文档（本文件）
 ```
 
@@ -422,9 +424,9 @@ pm2 restart identitygen
 本项目使用以下第三方 API（均为免费公开服务）：
 
 ### RandomUser
-- **用途**：生成与美国、英国国籍匹配的随机地区地址；FakerAPI 不可用时可提供备用身份字段
+- **用途**：生成与美国、英国、德国、土耳其国籍匹配的随机地区地址；FakerAPI 不可用时可提供备用身份字段
 - **接口地址**：`https://randomuser.me/api/1.4/`
-- **国籍参数**：美国使用 `nat=us`，英国使用 `nat=gb`
+- **国籍参数**：美国 `nat=us`、英国 `nat=gb`、德国 `nat=de`、土耳其 `nat=tr`
 - **认证**：无需（免费公开）
 - **文档**：[https://randomuser.me/documentation#nationalities](https://randomuser.me/documentation#nationalities)
 - **回退策略**：接口不可用时，地址回退到本地数据；指定地区地址仍由 Nominatim 提供

@@ -984,7 +984,7 @@
         <div class="section-card">
             <div class="section-header"><span class="section-icon">🔗</span><span class="section-title">身份与地址数据 API</span></div>
             <p class="section-desc">
-                姓名和身份数据优先来自 <a href="https://fakerapi.it" target="_blank" rel="noopener noreferrer">FakerAPI</a>；随机地区地址来自 <a href="https://randomuser.me/documentation#nationalities" target="_blank" rel="noopener noreferrer">RandomUser</a>，并使用 <code>nat=us</code> / <code>nat=gb</code> 限定国籍。两个接口均免费、无需 API Key。<br>
+                姓名和身份数据优先来自 <a href="https://fakerapi.it" target="_blank" rel="noopener noreferrer">FakerAPI</a>；随机地区地址来自 <a href="https://randomuser.me/documentation#nationalities" target="_blank" rel="noopener noreferrer">RandomUser</a>，并使用 <code>nat=us</code> / <code>nat=gb</code> / <code>nat=de</code> / <code>nat=tr</code> 限定国籍。两个接口均免费、无需 API Key。<br>
                 指定州/地区时使用 Nominatim；任一接口不可用时会自动使用另一接口可用字段或本地随机数据。
             </p>
             <div class="field">
@@ -1419,14 +1419,14 @@
             const el = document.getElementById('randomuser-api-status');
             setStatus(el, 'info', '正在测试...');
             try {
-                const r = await fetch('https://randomuser.me/api/1.4/?nat=us&results=1&inc=name,location,nat&noinfo');
-                const j = await r.json();
-                if (r.ok && Array.isArray(j.results) && j.results[0]) {
-                    const user = j.results[0];
-                    setStatus(el, 'ok', `✅ RandomUser 连接正常 - 返回数据: ${user.name.first} ${user.name.last}, ${user.location.city}`);
-                } else {
-                    setStatus(el, 'warn', '⚠️ API 返回异常');
-                }
+                const nationalities = ['us', 'gb', 'de', 'tr'];
+                const users = await Promise.all(nationalities.map(async nat => {
+                    const r = await fetch(`https://randomuser.me/api/1.4/?nat=${nat}&results=1&inc=name,location,nat&noinfo`);
+                    const j = await r.json();
+                    if (!r.ok || !Array.isArray(j.results) || !j.results[0]) throw new Error(`nat=${nat}`);
+                    return j.results[0];
+                }));
+                setStatus(el, 'ok', `✅ RandomUser 连接正常 - ${users.map(user => `${user.nat}: ${user.location.city}`).join(' / ')}`);
             } catch (e) {
                 setStatus(el, 'warn', '❌ 连接失败，将使用本地数据');
             }
@@ -1436,14 +1436,14 @@
             const el = document.getElementById('faker-api-status');
             setStatus(el, 'info', '正在测试...');
             try {
-                const r = await fetch('https://fakerapi.it/api/v2/persons?_quantity=1&_locale=en_US');
-                const j = await r.json();
-                if (r.ok && j.status === 'OK' && Array.isArray(j.data) && j.data[0]) {
-                    const person = j.data[0];
-                    setStatus(el, 'ok', `✅ FakerAPI 连接正常 - 返回数据: ${person.firstname} ${person.lastname}`);
-                } else {
-                    setStatus(el, 'warn', '⚠️ FakerAPI 返回异常');
-                }
+                const locales = ['en_US', 'en_GB', 'de_DE', 'tr_TR'];
+                const people = await Promise.all(locales.map(async locale => {
+                    const r = await fetch(`https://fakerapi.it/api/v2/persons?_quantity=1&_locale=${locale}`);
+                    const j = await r.json();
+                    if (!r.ok || j.status !== 'OK' || !Array.isArray(j.data) || !j.data[0]) throw new Error(locale);
+                    return `${locale}: ${j.data[0].firstname} ${j.data[0].lastname}`;
+                }));
+                setStatus(el, 'ok', `✅ FakerAPI 连接正常 - ${people.join(' / ')}`);
             } catch (e) {
                 setStatus(el, 'warn', '❌ FakerAPI 连接失败，将使用备用或本地数据');
             }

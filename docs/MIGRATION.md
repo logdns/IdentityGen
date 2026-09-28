@@ -2,6 +2,10 @@
 
 本文档用于从没有后台版本更新功能的旧版本迁移到新版。
 
+## 迁移到 v1.2.15
+
+v1.2.15 新增德国（DE）与土耳其（TR）身份和地址生成，RandomUser 分别使用 `nat=de`、`nat=tr`，FakerAPI 分别使用 `de_DE`、`tr_TR`。地区选择、本地回退、电话、邮编、证件号标签、完整地址、复制和地图均支持两个新国家。RandomUser 地址通过完整地址查询地图；只有指定地区时由 Nominatim 返回且位于目标国家合理范围内的坐标才直接定位，避免随机坐标落到错误地点。
+
 ## 迁移到 v1.2.14
 
 v1.2.14 明确保留 FakerAPI 的主要身份数据职责：生成时优先从 FakerAPI 获取姓名、邮箱等个人信息，随机地区地址同时从 RandomUser 获取；FakerAPI 不可用时才使用 RandomUser 身份字段或本地数据。后台现在可以分别测试两个接口。首次随机地址生成后，地图会立即加载，并优先使用接口返回的经纬度定位。
@@ -551,10 +555,10 @@ git stash show -p stash@{0}
 新版本发布时，从已审核提交创建 tag，并同步推送 `main` 与 tag：
 
 ```bash
-test "$(cat VERSION)" = "1.2.14"
-git tag -a v1.2.14 -m "Release v1.2.14"
+test "$(cat VERSION)" = "1.2.15"
+git tag -a v1.2.15 -m "Release v1.2.15"
 git push origin main
-git push origin v1.2.14
+git push origin v1.2.15
 ```
 
 后台显示的版本号来自仓库根目录的 `VERSION` 文件。发布新版本时，请先更新 `VERSION` 文件，再提交和打 tag。
@@ -562,9 +566,9 @@ git push origin v1.2.14
 发布包必须从不可变 tag 构建，不能从未提交的工作区打包；同时生成 SHA-256 清单，并在上传后核对远端制品：
 
 ```bash
-git archive --format=tar.gz --prefix=IdentityGen-v1.2.14/ -o IdentityGen-v1.2.14.tar.gz v1.2.14
-git archive --format=zip --prefix=IdentityGen-v1.2.14/ -o IdentityGen-v1.2.14.zip v1.2.14
-shasum -a 256 IdentityGen-v1.2.14.tar.gz IdentityGen-v1.2.14.zip > SHA256SUMS
+git archive --format=tar.gz --prefix=IdentityGen-v1.2.15/ -o IdentityGen-v1.2.15.tar.gz v1.2.15
+git archive --format=zip --prefix=IdentityGen-v1.2.15/ -o IdentityGen-v1.2.15.zip v1.2.15
+shasum -a 256 IdentityGen-v1.2.15.tar.gz IdentityGen-v1.2.15.zip > SHA256SUMS
 ```
 
 版本 tag 应启用 GitHub tag ruleset 保护；Release 创建和制品替换权限只授予发布维护者。条件允许时使用签名 tag 或 provenance attestation，并开启 immutable releases。

@@ -6,7 +6,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>IdentityGen - Random Identity Generator</title>
     <meta name="description"
-        content="Generate realistic US & UK identity information with real addresses, phone numbers and maps.">
+        content="Generate realistic US, UK, German and Turkish identity information with addresses, phone numbers and maps.">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@fontsource/inter@5/300.min.css">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@fontsource/inter@5/400.min.css">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@fontsource/inter@5/500.min.css">
@@ -17,7 +17,7 @@
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@fontsource/jetbrains-mono@5/400.min.css">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@fontsource/jetbrains-mono@5/500.min.css">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@fontsource/jetbrains-mono@5/600.min.css">
-    <link rel="stylesheet" href="style.css?v=1.2.14">
+    <link rel="stylesheet" href="style.css?v=1.2.15">
 </head>
 
 <body>
@@ -42,6 +42,14 @@
                 <button class="country-btn" data-country="uk" id="btn-uk">
                     <span class="country-flag">🇬🇧</span>
                     <span data-i18n="nav_uk">UK</span>
+                </button>
+                <button class="country-btn" data-country="de" id="btn-de">
+                    <span class="country-flag">🇩🇪</span>
+                    <span data-i18n="nav_de">DE</span>
+                </button>
+                <button class="country-btn" data-country="tr" id="btn-tr">
+                    <span class="country-flag">🇹🇷</span>
+                    <span data-i18n="nav_tr">TR</span>
                 </button>
             </div>
             <button class="theme-btn" id="theme-btn" onclick="toggleTheme()" title="Toggle theme">🌙</button>
@@ -69,7 +77,7 @@
         <section class="hero">
             <div class="hero-badge" data-i18n="hero_badge">🔥 Live Data-Driven</div>
             <h1 data-i18n="hero_title">Random Identity Generator</h1>
-            <p class="hero-desc" data-i18n="hero_sub">Generate realistic US & UK personal info with addresses, phone numbers & more</p>
+            <p class="hero-desc" data-i18n="hero_sub">Generate realistic US, UK, German and Turkish personal info with addresses, phone numbers & more</p>
         </section>
 
         <section class="ad-slot" id="ad-top" hidden></section>
@@ -255,8 +263,8 @@
         </div>
     </footer>
 
-    <script src="data.js?v=1.2.14"></script>
-    <script src="app.js?v=1.2.14"></script>
+    <script src="data.js?v=1.2.15"></script>
+    <script src="app.js?v=1.2.15"></script>
 </body>
 
 </html>

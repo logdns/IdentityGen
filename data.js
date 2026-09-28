@@ -1,6 +1,6 @@
 // ============================================================
-// DATA.JS — All static data for US & UK identity generation
-// Ported from the original us.js / uk.js Cloudflare Workers
+// DATA.JS — Static fallback data for US, UK, DE & TR identity generation
+// Ported from the original US/UK workers and extended for DE/TR
 // ============================================================
 
 const DATA = {
@@ -158,5 +158,52 @@ const DATA = {
     lastNames: ["Smith","Jones","Williams","Taylor","Brown","Davies","Evans","Wilson","Thomas","Roberts",
                 "Johnson","Lewis","Walker","Robinson","Wood","Thompson","White","Watson","Jackson","Wright",
                 "Green","Harris","Cooper","King","Lee","Martin","Clarke","James","Morgan","Hughes"]
+  },
+
+  de: {
+    regions: ["Baden-Württemberg","Bavaria","Berlin","Brandenburg","Bremen","Hamburg","Hesse","Lower Saxony","Mecklenburg-Vorpommern","North Rhine-Westphalia","Rhineland-Palatinate","Saarland","Saxony","Saxony-Anhalt","Schleswig-Holstein","Thuringia"],
+    cities: {
+      "Baden-Württemberg": ["Stuttgart","Mannheim","Karlsruhe","Freiburg im Breisgau"],
+      "Bavaria": ["Munich","Nuremberg","Augsburg","Regensburg"],
+      "Berlin": ["Berlin"],
+      "Brandenburg": ["Potsdam","Cottbus","Brandenburg an der Havel"],
+      "Bremen": ["Bremen","Bremerhaven"],
+      "Hamburg": ["Hamburg"],
+      "Hesse": ["Frankfurt am Main","Wiesbaden","Kassel","Darmstadt"],
+      "Lower Saxony": ["Hanover","Braunschweig","Oldenburg","Osnabrück"],
+      "Mecklenburg-Vorpommern": ["Rostock","Schwerin","Neubrandenburg"],
+      "North Rhine-Westphalia": ["Cologne","Düsseldorf","Dortmund","Essen","Bonn"],
+      "Rhineland-Palatinate": ["Mainz","Ludwigshafen","Koblenz","Trier"],
+      "Saarland": ["Saarbrücken","Neunkirchen","Homburg"],
+      "Saxony": ["Dresden","Leipzig","Chemnitz"],
+      "Saxony-Anhalt": ["Magdeburg","Halle","Dessau-Roßlau"],
+      "Schleswig-Holstein": ["Kiel","Lübeck","Flensburg"],
+      "Thuringia": ["Erfurt","Jena","Gera","Weimar"]
+    },
+    streets: ["Hauptstraße","Bahnhofstraße","Gartenstraße","Schulstraße","Dorfstraße","Bergstraße","Goethestraße","Schillerstraße","Lindenstraße","Kirchstraße","Waldstraße","Mozartstraße","Beethovenstraße","Rosenweg","Am Markt"],
+    firstNames: {
+      male: ["Lukas","Leon","Finn","Jonas","Felix","Paul","Maximilian","Elias","Noah","Julian","Alexander","Daniel"],
+      female: ["Emma","Mia","Hannah","Emilia","Lina","Lea","Sophie","Anna","Marie","Laura","Lena","Julia"]
+    },
+    lastNames: ["Müller","Schmidt","Schneider","Fischer","Weber","Meyer","Wagner","Becker","Schulz","Hoffmann","Schäfer","Koch","Bauer","Richter","Klein"]
+  },
+
+  tr: {
+    regions: ["Marmara","Aegean","Mediterranean","Central Anatolia","Black Sea","Eastern Anatolia","Southeastern Anatolia"],
+    cities: {
+      "Marmara": ["İstanbul","Bursa","Edirne","Kocaeli","Tekirdağ"],
+      "Aegean": ["İzmir","Manisa","Aydın","Denizli","Muğla"],
+      "Mediterranean": ["Antalya","Adana","Mersin","Hatay","Isparta"],
+      "Central Anatolia": ["Ankara","Konya","Kayseri","Eskişehir","Sivas"],
+      "Black Sea": ["Samsun","Trabzon","Ordu","Rize","Zonguldak"],
+      "Eastern Anatolia": ["Erzurum","Van","Malatya","Elazığ","Kars"],
+      "Southeastern Anatolia": ["Gaziantep","Diyarbakır","Şanlıurfa","Mardin","Batman"]
+    },
+    streets: ["Atatürk Caddesi","Cumhuriyet Caddesi","İstiklal Caddesi","Gazi Caddesi","Fatih Caddesi","İnönü Caddesi","Barış Sokak","Çiçek Sokak","Lale Sokak","Mimar Sinan Caddesi","Mevlana Caddesi","Ankara Caddesi","İstanbul Caddesi","Yeni Yol","Park Sokak"],
+    firstNames: {
+      male: ["Mehmet","Mustafa","Ahmet","Ali","Hüseyin","Hasan","İbrahim","Emre","Burak","Murat","Kerem","Can"],
+      female: ["Fatma","Ayşe","Emine","Hatice","Zeynep","Elif","Merve","Esra","Selin","Derya","Ece","İrem"]
+    },
+    lastNames: ["Yılmaz","Kaya","Demir","Şahin","Çelik","Yıldız","Yıldırım","Öztürk","Aydın","Özdemir","Arslan","Doğan","Kılıç","Aslan","Çetin"]
   }
 };

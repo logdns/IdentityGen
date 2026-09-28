@@ -1,5 +1,5 @@
 // ═══════════════════════════════════════════════
-// APP.JS — FakerAPI identities + RandomUser/Nominatim addresses + i18n + Map
+// APP.JS — US/UK/DE/TR identities + RandomUser/Nominatim addresses + i18n + Map
 // ═══════════════════════════════════════════════
 
 let currentCountry = 'us';
@@ -276,10 +276,10 @@ function sanitizeHTML(html) {
 // ═══════════════════════════════════════════════
 const I18N = {
     'zh-CN': {
-        nav_us: '美国', nav_uk: '英国',
+        nav_us: '美国', nav_uk: '英国', nav_de: '德国', nav_tr: '土耳其',
         hero_badge: '🔥 实时数据驱动',
         hero_title: '随机身份信息生成器',
-        hero_sub: '一键生成真实格式的美国和英国个人信息，支持地址、电话、邮箱等',
+        hero_sub: '一键生成美国、英国、德国和土耳其格式的个人信息与地址',
         select_label: '选择地区', generate_btn: '生成新身份',
         loading_text: '正在获取真实地址数据...',
         label_name: '姓名', label_gender: '性别', label_dob: '出生日期',
@@ -287,6 +287,8 @@ const I18N = {
         label_street: '街道地址', label_city: '城市',
         label_state_us: '州', label_zip_us: '邮政编码', label_ssn_us: '社会安全号码',
         label_state_uk: '地区', label_zip_uk: '邮编', label_ssn_uk: '国民保险号码',
+        label_state_de: '联邦州', label_zip_de: '邮政编码', label_ssn_de: '证件号码',
+        label_state_tr: '省 / 地区', label_zip_tr: '邮政编码', label_ssn_tr: '证件号码',
         label_fulladdr: '完整地址', label_website: '个人网站',
         click_copy: '点击复制', copy_all: '复制全部信息',
         map_title: '📍 地图定位',
@@ -307,10 +309,10 @@ const I18N = {
         copy_failed: '复制失败，请手动复制',
     },
     'zh-TW': {
-        nav_us: '美國', nav_uk: '英國',
+        nav_us: '美國', nav_uk: '英國', nav_de: '德國', nav_tr: '土耳其',
         hero_badge: '🔥 即時資料驅動',
         hero_title: '隨機身分資訊產生器',
-        hero_sub: '一鍵產生真實格式的美國和英國個人資訊，支援地址、電話、Email 等',
+        hero_sub: '一鍵產生美國、英國、德國和土耳其格式的個人資訊與地址',
         select_label: '選擇地區', generate_btn: '產生新身分',
         loading_text: '正在取得真實地址資料...',
         label_name: '姓名', label_gender: '性別', label_dob: '出生日期',
@@ -318,6 +320,8 @@ const I18N = {
         label_street: '街道地址', label_city: '城市',
         label_state_us: '州', label_zip_us: '郵遞區號', label_ssn_us: '社會安全號碼',
         label_state_uk: '地區', label_zip_uk: '郵遞區號', label_ssn_uk: '國民保險號碼',
+        label_state_de: '聯邦州', label_zip_de: '郵遞區號', label_ssn_de: '證件號碼',
+        label_state_tr: '省 / 地區', label_zip_tr: '郵遞區號', label_ssn_tr: '證件號碼',
         label_fulladdr: '完整地址', label_website: '個人網站',
         click_copy: '點擊複製', copy_all: '複製全部資訊',
         map_title: '📍 地圖定位',
@@ -338,10 +342,10 @@ const I18N = {
         copy_failed: '複製失敗，請手動複製',
     },
     en: {
-        nav_us: 'US', nav_uk: 'UK',
+        nav_us: 'US', nav_uk: 'UK', nav_de: 'DE', nav_tr: 'TR',
         hero_badge: '🔥 Live Data-Driven',
         hero_title: 'Random Identity Generator',
-        hero_sub: 'Generate realistic US & UK personal info with addresses, phone numbers & more',
+        hero_sub: 'Generate realistic US, UK, German and Turkish personal info with addresses and phone numbers',
         select_label: 'Region', generate_btn: 'Generate New',
         loading_text: 'Fetching real address data...',
         label_name: 'Full Name', label_gender: 'Gender', label_dob: 'Date of Birth',
@@ -349,6 +353,8 @@ const I18N = {
         label_street: 'Street Address', label_city: 'City',
         label_state_us: 'State', label_zip_us: 'ZIP Code', label_ssn_us: 'SSN',
         label_state_uk: 'Region', label_zip_uk: 'Postcode', label_ssn_uk: 'NI Number',
+        label_state_de: 'Federal State', label_zip_de: 'Postcode', label_ssn_de: 'ID Number',
+        label_state_tr: 'Province / Region', label_zip_tr: 'Postcode', label_ssn_tr: 'ID Number',
         label_fulladdr: 'Full Address', label_website: 'Website',
         click_copy: 'Copy', copy_all: 'Copy All Info',
         map_title: '📍 Map Location',
@@ -369,10 +375,10 @@ const I18N = {
         copy_failed: 'Copy failed. Please copy it manually.',
     },
     ja: {
-        nav_us: 'US', nav_uk: 'UK',
+        nav_us: 'US', nav_uk: 'UK', nav_de: 'DE', nav_tr: 'TR',
         hero_badge: '🔥 リアルタイムデータ駆動',
         hero_title: 'ランダム身元情報ジェネレーター',
-        hero_sub: '米国・英国形式の個人情報、住所、電話番号、メールなどを生成',
+        hero_sub: '米国・英国・ドイツ・トルコ形式の個人情報と住所を生成',
         select_label: '地域', generate_btn: '新しく生成',
         loading_text: '実在形式の住所データを取得中...',
         label_name: '氏名', label_gender: '性別', label_dob: '生年月日',
@@ -380,6 +386,8 @@ const I18N = {
         label_street: '住所', label_city: '市区町村',
         label_state_us: '州', label_zip_us: '郵便番号', label_ssn_us: 'SSN',
         label_state_uk: '地域', label_zip_uk: '郵便番号', label_ssn_uk: 'NI 番号',
+        label_state_de: '連邦州', label_zip_de: '郵便番号', label_ssn_de: 'ID 番号',
+        label_state_tr: '県 / 地域', label_zip_tr: '郵便番号', label_ssn_tr: 'ID 番号',
         label_fulladdr: '完全な住所', label_website: 'ウェブサイト',
         click_copy: 'コピー', copy_all: 'すべてコピー',
         map_title: '📍 地図',
@@ -409,7 +417,7 @@ function normalizeLang(lang) {
 function t(key) { return (I18N[currentLang] && I18N[currentLang][key]) || I18N.en[key] || key; }
 
 function applyI18n() {
-    const sfx = currentCountry === 'uk' ? '_uk' : '_us';
+    const sfx = `_${currentCountry}`;
     document.querySelectorAll('[data-i18n]').forEach(el => {
         const k = el.getAttribute('data-i18n');
         if (k === 'label_state') { el.textContent = t('label_state' + sfx); return; }
@@ -594,7 +602,7 @@ function populateSelect() {
         DATA.us.states.forEach(s => addOpt(sel, s.abbr, `${s.full} (${s.abbr})`));
     } else {
         addOpt(sel, '', t('random_region'));
-        DATA.uk.regions.forEach(r => addOpt(sel, r, r));
+        DATA[currentCountry].regions.forEach(r => addOpt(sel, r, r));
     }
 }
 function addOpt(sel, v, txt) {
@@ -666,6 +674,35 @@ const REGION_COORDS = {
     "Northern Ireland": [{ lat: 54.5973, lng: -5.9301 }, { lat: 54.9966, lng: -7.3086 }]
 };
 
+const DE_REGION_COORDS = {
+    "Baden-Württemberg": [{ lat: 48.7758, lng: 9.1829 }, { lat: 49.0069, lng: 8.4037 }],
+    "Bavaria": [{ lat: 48.1351, lng: 11.5820 }, { lat: 49.4521, lng: 11.0767 }],
+    "Berlin": [{ lat: 52.5200, lng: 13.4050 }],
+    "Brandenburg": [{ lat: 52.3906, lng: 13.0645 }, { lat: 51.7563, lng: 14.3329 }],
+    "Bremen": [{ lat: 53.0793, lng: 8.8017 }, { lat: 53.5396, lng: 8.5809 }],
+    "Hamburg": [{ lat: 53.5511, lng: 9.9937 }],
+    "Hesse": [{ lat: 50.1109, lng: 8.6821 }, { lat: 50.0782, lng: 8.2398 }],
+    "Lower Saxony": [{ lat: 52.3759, lng: 9.7320 }, { lat: 53.1435, lng: 8.2146 }],
+    "Mecklenburg-Vorpommern": [{ lat: 54.0924, lng: 12.0991 }, { lat: 53.6355, lng: 11.4012 }],
+    "North Rhine-Westphalia": [{ lat: 50.9375, lng: 6.9603 }, { lat: 51.2277, lng: 6.7735 }],
+    "Rhineland-Palatinate": [{ lat: 49.9929, lng: 8.2473 }, { lat: 50.3569, lng: 7.5890 }],
+    "Saarland": [{ lat: 49.2402, lng: 6.9969 }],
+    "Saxony": [{ lat: 51.0504, lng: 13.7373 }, { lat: 51.3397, lng: 12.3731 }],
+    "Saxony-Anhalt": [{ lat: 52.1205, lng: 11.6276 }, { lat: 51.4969, lng: 11.9688 }],
+    "Schleswig-Holstein": [{ lat: 54.3233, lng: 10.1228 }, { lat: 53.8655, lng: 10.6866 }],
+    "Thuringia": [{ lat: 50.9848, lng: 11.0299 }, { lat: 50.9271, lng: 11.5892 }]
+};
+
+const TR_REGION_COORDS = {
+    "Marmara": [{ lat: 41.0082, lng: 28.9784 }, { lat: 40.1885, lng: 29.0610 }],
+    "Aegean": [{ lat: 38.4237, lng: 27.1428 }, { lat: 37.2153, lng: 28.3636 }],
+    "Mediterranean": [{ lat: 36.8969, lng: 30.7133 }, { lat: 36.8121, lng: 34.6415 }],
+    "Central Anatolia": [{ lat: 39.9334, lng: 32.8597 }, { lat: 37.8746, lng: 32.4932 }],
+    "Black Sea": [{ lat: 41.2867, lng: 36.3300 }, { lat: 41.0015, lng: 39.7178 }],
+    "Eastern Anatolia": [{ lat: 39.9043, lng: 41.2679 }, { lat: 38.5012, lng: 43.3729 }],
+    "Southeastern Anatolia": [{ lat: 37.0662, lng: 37.3833 }, { lat: 37.9144, lng: 40.2306 }]
+};
+
 // ═══════════════════════════════════════
 // Nominatim reverse geocode
 // ═══════════════════════════════════════
@@ -716,7 +753,8 @@ async function generateIdentity() {
 
     try {
         if (currentCountry === 'us') await generateUS(generationId);
-        else await generateUK(generationId);
+        else if (currentCountry === 'uk') await generateUK(generationId);
+        else await generateRegionalIdentity(currentCountry, generationId);
     } catch (e) {
         if (generationId === generationSeq) {
             console.error('Generate error:', e);
@@ -789,8 +827,8 @@ async function generateUS(generationId) {
         ssn: (!selectedState && randomUser && randomUser.id) || genSSN(),
         website: person.website || '—',
         fullAddress: fullAddr,
-        lat: realAddr ? realAddr.lat : null,
-        lng: realAddr ? realAddr.lng : null
+        lat: selectedAddr ? selectedAddr.lat : null,
+        lng: selectedAddr ? selectedAddr.lng : null
     };
 
     renderIdentity();
@@ -838,8 +876,71 @@ async function generateUK(generationId) {
         ssn: (!selectedRegion && randomUser && randomUser.id) || genNI(),
         website: person.website || '—',
         fullAddress: fullAddr,
-        lat: realAddr ? realAddr.lat : null,
-        lng: realAddr ? realAddr.lng : null
+        lat: selectedAddr ? selectedAddr.lat : null,
+        lng: selectedAddr ? selectedAddr.lng : null
+    };
+
+    renderIdentity();
+    updateMap(fullAddr, currentIdentity.lat, currentIdentity.lng);
+}
+
+const REGIONAL_COUNTRY_CONFIG = {
+    de: {
+        locale: 'de_DE', nationality: 'de', countryName: 'Germany',
+        coords: DE_REGION_COORDS, fallbackCity: 'Berlin',
+        formatStreet: addr => `${addr.road} ${addr.houseNumber}`,
+        phone: genDEPhone, postcode: genDEPostcode, id: genDEId
+    },
+    tr: {
+        locale: 'tr_TR', nationality: 'tr', countryName: 'Türkiye',
+        coords: TR_REGION_COORDS, fallbackCity: 'İstanbul',
+        formatStreet: addr => `${addr.road} No: ${addr.houseNumber}`,
+        phone: genTRPhone, postcode: genTRPostcode, id: genTRId
+    }
+};
+
+async function generateRegionalIdentity(country, generationId) {
+    const config = REGIONAL_COUNTRY_CONFIG[country];
+    const selectedRegion = $('region-select').value || '';
+    const [fakerPerson, randomUser, selectedAddr] = await Promise.all([
+        fetchPerson(config.locale),
+        fetchRandomUser(config.nationality),
+        selectedRegion ? fetchRealAddress(config.coords[selectedRegion]) : Promise.resolve(null)
+    ]);
+
+    if (generationId !== generationSeq) return;
+
+    const person = fakerPerson || (randomUser && randomUser.person) || localPerson(country);
+    const apiAddr = !selectedRegion && randomUser && randomUser.address;
+    const fallbackRegion = pick(DATA[country].regions);
+    const region = selectedRegion || (apiAddr && apiAddr.state) || fallbackRegion;
+    const realAddr = selectedAddr || apiAddr;
+    let street, city, zip;
+
+    if (realAddr) {
+        street = config.formatStreet(realAddr);
+        city = realAddr.city || pick(DATA[country].cities[selectedRegion || fallbackRegion] || [config.fallbackCity]);
+        zip = realAddr.postcode || config.postcode();
+    } else {
+        street = config.formatStreet({ road: pick(DATA[country].streets), houseNumber: randInt(1, 250) });
+        city = pick(DATA[country].cities[selectedRegion || fallbackRegion] || [config.fallbackCity]);
+        zip = config.postcode();
+    }
+
+    const phone = !selectedRegion && randomUser && randomUser.phone ? randomUser.phone : config.phone();
+    const fullAddr = `${street}, ${zip} ${city}, ${region}, ${config.countryName}`;
+    currentIdentity = {
+        name: `${person.firstname} ${person.lastname}`,
+        genderRaw: person.gender || (Math.random() < 0.5 ? 'male' : 'female'),
+        dob: person.birthday || genDOB(randInt(18, 75)),
+        phone,
+        email: person.email || genEmail(person.firstname, person.lastname, country),
+        address: street, city, state: region, zip,
+        ssn: (!selectedRegion && randomUser && randomUser.id) || config.id(),
+        website: person.website || '—',
+        fullAddress: fullAddr,
+        lat: selectedAddr ? selectedAddr.lat : null,
+        lng: selectedAddr ? selectedAddr.lng : null
     };
 
     renderIdentity();
@@ -910,7 +1011,7 @@ async function fetchPerson(locale) {
 
 function localPerson(country) {
     const g = Math.random() < 0.5 ? 'male' : 'female';
-    const set = country === 'uk' ? DATA.uk : DATA.us;
+    const set = DATA[country] || DATA.us;
     return {
         firstname: pick(set.firstNames[g]),
         lastname: pick(set.lastNames),
@@ -936,7 +1037,7 @@ function buildLocalFallback() {
             ssn: genSSN(), website: '—',
             fullAddress: `${street}, ${city}, ${st.full} ${a}, ${zip}`
         };
-    } else {
+    } else if (currentCountry === 'uk') {
         const region = pick(DATA.uk.regions);
         const p = localPerson('uk');
         const street = `${randInt(1, 150)} ${pick(DATA.uk.streets)}`;
@@ -949,6 +1050,22 @@ function buildLocalFallback() {
             address: street, city, state: region, zip,
             ssn: genNI(), website: '—',
             fullAddress: `${street}, ${city}, ${region}, ${zip}`
+        };
+    } else {
+        const country = currentCountry;
+        const config = REGIONAL_COUNTRY_CONFIG[country];
+        const region = pick(DATA[country].regions);
+        const p = localPerson(country);
+        const street = config.formatStreet({ road: pick(DATA[country].streets), houseNumber: randInt(1, 250) });
+        const city = pick(DATA[country].cities[region] || [config.fallbackCity]);
+        const zip = config.postcode();
+        currentIdentity = {
+            name: `${p.firstname} ${p.lastname}`, genderRaw: p.gender,
+            dob: p.birthday, phone: config.phone(),
+            email: genEmail(p.firstname, p.lastname, country),
+            address: street, city, state: region, zip,
+            ssn: config.id(), website: '—',
+            fullAddress: `${street}, ${zip} ${city}, ${region}, ${config.countryName}`
         };
     }
     renderIdentity();
@@ -975,11 +1092,25 @@ function renderIdentity() {
 // ═══════════════════════════════════════
 // Map
 // ═══════════════════════════════════════
+function isCoordinateInCountry(country, lat, lng) {
+    const point = [Number(lat), Number(lng)];
+    if (!point.every(Number.isFinite)) return false;
+    const boxes = {
+        us: [[24, 50, -125, -66], [51, 72, -170, -129], [18, 23, -161, -154]],
+        uk: [[49, 61, -9, 3]],
+        de: [[47, 56, 5, 16]],
+        tr: [[35, 43, 25, 46]]
+    }[country] || [];
+    return boxes.some(([minLat, maxLat, minLng, maxLng]) =>
+        point[0] >= minLat && point[0] <= maxLat && point[1] >= minLng && point[1] <= maxLng
+    );
+}
+
 function updateMap(address, lat = null, lng = null) {
     const iframe = $('map-iframe');
     const provider = gc('map_provider') || 'osm';
     const key = gc('google_maps_key') || '';
-    const hasCoordinates = Number.isFinite(Number(lat)) && Number.isFinite(Number(lng));
+    const hasCoordinates = isCoordinateInCountry(currentCountry, lat, lng);
     const location = hasCoordinates ? `${Number(lat)},${Number(lng)}` : address;
     if (provider === 'google' && key) {
         iframe.src = `https://www.google.com/maps/embed/v1/place?key=${encodeURIComponent(key)}&q=${encodeURIComponent(location)}`;
@@ -997,11 +1128,25 @@ function genDOB(age) {
 }
 function genUSZip() { return String(randInt(10000, 99999)); }
 function genSSN() { return `${randInt(100, 999)}-${randInt(10, 99)}-${randInt(1000, 9999)}`; }
+function normalizeEmailPart(value) {
+    return String(value || '')
+        .normalize('NFKD')
+        .replace(/[\u0300-\u036f]/g, '')
+        .replace(/ß/g, 'ss')
+        .replace(/ı/g, 'i')
+        .toLowerCase()
+        .replace(/[^a-z0-9]/g, '');
+}
 function genEmail(fn, ln, country) {
-    const domains = country === 'uk'
-        ? ['gmail.com', 'yahoo.co.uk', 'outlook.com', 'hotmail.co.uk', 'btinternet.com']
-        : ['gmail.com', 'yahoo.com', 'outlook.com', 'hotmail.com', 'icloud.com'];
-    return `${fn.toLowerCase()}.${ln.toLowerCase()}${randInt(1, 999)}@${pick(domains)}`;
+    const domains = {
+        us: ['gmail.com', 'yahoo.com', 'outlook.com', 'hotmail.com', 'icloud.com'],
+        uk: ['gmail.com', 'yahoo.co.uk', 'outlook.com', 'hotmail.co.uk', 'btinternet.com'],
+        de: ['gmail.com', 'web.de', 'gmx.de', 'outlook.de', 't-online.de'],
+        tr: ['gmail.com', 'outlook.com', 'yandex.com.tr', 'turk.net', 'hotmail.com']
+    }[country] || ['gmail.com', 'outlook.com'];
+    const first = normalizeEmailPart(fn) || 'user';
+    const last = normalizeEmailPart(ln) || 'name';
+    return `${first}.${last}${randInt(1, 999)}@${pick(domains)}`;
 }
 function genUSPhone(st) {
     const codes = DATA.us.areaCodes[st] || ['555'];
@@ -1026,6 +1171,25 @@ function genNI() {
     const pfx = pick(['AA', 'AB', 'AE', 'AH', 'AK', 'AL', 'AM', 'AP', 'AR', 'AS', 'AT', 'AW', 'AX', 'AY', 'AZ', 'BA', 'BB', 'BE']);
     const n = String(randInt(100000, 999999));
     return `${pfx} ${n.slice(0, 2)} ${n.slice(2, 4)} ${n.slice(4, 6)} ${pick(['A', 'B', 'C', 'D'])}`;
+}
+function genDEPostcode() { return String(randInt(1000, 99999)).padStart(5, '0'); }
+function genDEPhone() {
+    return `+49 ${pick(['151', '152', '157', '160', '170', '171', '175', '176'])} ${randInt(1000000, 9999999)}`;
+}
+function genDEId() {
+    const chars = 'ABCDEFGHJKLMNPRSTUVWXYZ0123456789';
+    return Array.from({ length: 9 }, () => chars[randInt(0, chars.length - 1)]).join('');
+}
+function genTRPostcode() { return String(randInt(1000, 81999)).padStart(5, '0'); }
+function genTRPhone() { return `+90 (5${randInt(30, 59)}) ${randInt(100, 999)} ${randInt(10, 99)} ${randInt(10, 99)}`; }
+function genTRId() {
+    const digits = [randInt(1, 9)];
+    while (digits.length < 9) digits.push(randInt(0, 9));
+    const odd = digits[0] + digits[2] + digits[4] + digits[6] + digits[8];
+    const even = digits[1] + digits[3] + digits[5] + digits[7];
+    digits.push(((odd * 7 - even) % 10 + 10) % 10);
+    digits.push(digits.reduce((sum, digit) => sum + digit, 0) % 10);
+    return digits.join('');
 }
 
 // ═══════════════════════════════════════
@@ -1076,7 +1240,7 @@ async function copyField(el) {
 
 async function copyAll() {
     const ci = currentIdentity;
-    const sfx = currentCountry === 'uk' ? '_uk' : '_us';
+    const sfx = `_${currentCountry}`;
     const gMap = { male: 'gender_male', female: 'gender_female', other: 'gender_other' };
     const lines = [
         `${t('label_name')}: ${ci.name}`,
