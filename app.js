@@ -1,5 +1,5 @@
 // ═══════════════════════════════════════════════
-// APP.JS — FakerAPI + Nominatim + i18n + Map
+// APP.JS — RandomUser + FakerAPI/Nominatim fallbacks + i18n + Map
 // ═══════════════════════════════════════════════
 
 let currentCountry = 'us';
@@ -741,24 +741,32 @@ async function generateIdentity() {
 
 async function generateUS(generationId) {
     const selVal = $('region-select').value;
-    const st = selVal ? DATA.us.states.find(s => s.abbr === selVal) : pick(DATA.us.states);
-    const abbr = st.abbr;
+    const selectedState = selVal ? DATA.us.states.find(s => s.abbr === selVal) : null;
 
-    // Fetch person from FakerAPI + real address from Nominatim in parallel
-    const [personData, addrData] = await Promise.all([
-        fetchPerson('en_US'),
-        fetchRealAddress(STATE_COORDS[abbr])
+    // RandomUser supplies a coherent US identity and address. Nominatim remains
+    // the address source when a specific state is selected, because RandomUser's
+    // nationality filter cannot constrain results to a state.
+    const [sourceData, selectedAddr] = await Promise.all([
+        fetchIdentitySource('us', 'en_US'),
+        selectedState ? fetchRealAddress(STATE_COORDS[selectedState.abbr]) : Promise.resolve(null)
     ]);
 
     if (generationId !== generationSeq) return;
 
-    const person = personData || localPerson('us');
-    const realAddr = addrData;
+    const person = sourceData.person || localPerson('us');
+    const apiAddr = !selectedState ? sourceData.address : null;
+    const matchedState = apiAddr ? findUSState(apiAddr.state) : null;
+    const fallbackState = pick(DATA.us.states);
+    const st = selectedState || matchedState || (apiAddr && apiAddr.state
+        ? { full: apiAddr.state, abbr: '' }
+        : fallbackState);
+    const abbr = st.abbr;
+    const realAddr = selectedAddr || apiAddr;
 
     let street, city, zip;
     if (realAddr) {
         street = `${realAddr.houseNumber} ${realAddr.road}`;
-        city = realAddr.city || pick(DATA.us.cities[abbr] || ['Springfield']);
+        city = realAddr.city || pick(DATA.us.cities[abbr] || DATA.us.cities[fallbackState.abbr] || ['Springfield']);
         zip = realAddr.postcode || genUSZip();
     } else {
         street = `${randInt(100, 9999)} ${pick(DATA.us.streets)}`;
@@ -766,9 +774,10 @@ async function generateUS(generationId) {
         zip = genUSZip();
     }
 
-    const phone = genUSPhone(abbr);
+    const phone = !selectedState && sourceData.phone ? sourceData.phone : genUSPhone(abbr);
     // Full address format: 街道地址, 城市, State, 邮编
-    const fullAddr = `${street}, ${city}, ${st.full} ${abbr}, ${zip}`;
+    const stateLabel = abbr ? `${st.full} (${abbr})` : st.full;
+    const fullAddr = `${street}, ${city}, ${st.full}${abbr ? ` ${abbr}` : ''}, ${zip}`;
 
     currentIdentity = {
         name: `${person.firstname} ${person.lastname}`,
@@ -776,8 +785,8 @@ async function generateUS(generationId) {
         dob: person.birthday || genDOB(randInt(18, 75)),
         phone, email: person.email || genEmail(person.firstname, person.lastname, 'us'),
         address: street, city,
-        state: `${st.full} (${abbr})`, zip,
-        ssn: genSSN(),
+        state: stateLabel, zip,
+        ssn: sourceData.id || genSSN(),
         website: person.website || '—',
         fullAddress: fullAddr,
         lat: realAddr ? realAddr.lat : null,
@@ -790,30 +799,33 @@ async function generateUS(generationId) {
 
 async function generateUK(generationId) {
     const selVal = $('region-select').value;
-    const region = selVal || pick(DATA.uk.regions);
+    const selectedRegion = selVal || '';
 
-    const [personData, addrData] = await Promise.all([
-        fetchPerson('en_GB'),
-        fetchRealAddress(REGION_COORDS[region])
+    const [sourceData, selectedAddr] = await Promise.all([
+        fetchIdentitySource('gb', 'en_GB'),
+        selectedRegion ? fetchRealAddress(REGION_COORDS[selectedRegion]) : Promise.resolve(null)
     ]);
 
     if (generationId !== generationSeq) return;
 
-    const person = personData || localPerson('uk');
-    const realAddr = addrData;
+    const person = sourceData.person || localPerson('uk');
+    const apiAddr = !selectedRegion ? sourceData.address : null;
+    const fallbackRegion = pick(DATA.uk.regions);
+    const region = selectedRegion || (apiAddr && apiAddr.state) || fallbackRegion;
+    const realAddr = selectedAddr || apiAddr;
 
     let street, city, zip;
     if (realAddr) {
         street = `${realAddr.houseNumber} ${realAddr.road}`;
-        city = realAddr.city || pick(DATA.uk.cities[region] || ['London']);
-        zip = realAddr.postcode || genUKPostcode(region);
+        city = realAddr.city || pick(DATA.uk.cities[selectedRegion || fallbackRegion] || ['London']);
+        zip = realAddr.postcode || genUKPostcode(selectedRegion || fallbackRegion);
     } else {
         street = `${randInt(1, 150)} ${pick(DATA.uk.streets)}`;
-        city = pick(DATA.uk.cities[region] || ['London']);
-        zip = genUKPostcode(region);
+        city = pick(DATA.uk.cities[selectedRegion || fallbackRegion] || ['London']);
+        zip = genUKPostcode(selectedRegion || fallbackRegion);
     }
 
-    const phone = genUKPhone(region);
+    const phone = !selectedRegion && sourceData.phone ? sourceData.phone : genUKPhone(selectedRegion || fallbackRegion);
     const fullAddr = `${street}, ${city}, ${region}, ${zip}`;
 
     currentIdentity = {
@@ -822,7 +834,7 @@ async function generateUK(generationId) {
         dob: person.birthday || genDOB(randInt(18, 75)),
         phone, email: person.email || genEmail(person.firstname, person.lastname, 'uk'),
         address: street, city, state: region, zip,
-        ssn: genNI(),
+        ssn: sourceData.id || genNI(),
         website: person.website || '—',
         fullAddress: fullAddr,
         lat: realAddr ? realAddr.lat : null,
@@ -834,8 +846,66 @@ async function generateUK(generationId) {
 }
 
 // ═══════════════════════════════════════
-// FakerAPI fetch
+// RandomUser primary source + FakerAPI fallback
 // ═══════════════════════════════════════
+async function fetchRandomUser(nationality) {
+    try {
+        const fields = 'gender,name,location,email,dob,phone,cell,id,nat';
+        const url = `https://randomuser.me/api/1.4/?nat=${encodeURIComponent(nationality)}&results=1&inc=${fields}&noinfo`;
+        const resp = await fetchWithTimeout(url, {}, 7000);
+        if (!resp.ok) return null;
+
+        const json = await resp.json();
+        const user = json && Array.isArray(json.results) ? json.results[0] : null;
+        const location = user && user.location;
+        const street = location && location.street;
+        if (!user || !user.name) return null;
+
+        const postcode = location && location.postcode != null ? String(location.postcode) : '';
+        const latitude = location && location.coordinates ? Number(location.coordinates.latitude) : NaN;
+        const longitude = location && location.coordinates ? Number(location.coordinates.longitude) : NaN;
+        const address = location && street && street.name ? {
+            houseNumber: street.number != null ? String(street.number) : String(randInt(1, 9999)),
+            road: String(street.name),
+            city: String(location.city || ''),
+            postcode,
+            state: String(location.state || ''),
+            lat: Number.isFinite(latitude) ? latitude : null,
+            lng: Number.isFinite(longitude) ? longitude : null
+        } : null;
+
+        return {
+            person: {
+                firstname: String(user.name.first || ''),
+                lastname: String(user.name.last || ''),
+                gender: user.gender === 'male' || user.gender === 'female' ? user.gender : 'other',
+                birthday: user.dob && user.dob.date ? String(user.dob.date).slice(0, 10) : '',
+                email: String(user.email || ''),
+                website: '—'
+            },
+            address,
+            phone: String(user.phone || user.cell || ''),
+            id: user.id && user.id.value ? String(user.id.value) : ''
+        };
+    } catch (e) { /* use the next source */ }
+    return null;
+}
+
+async function fetchIdentitySource(nationality, locale) {
+    const randomUser = await fetchRandomUser(nationality);
+    if (randomUser) return randomUser;
+
+    const fakerPerson = await fetchPerson(locale);
+    return { person: fakerPerson, address: null, phone: '', id: '' };
+}
+
+function findUSState(stateName) {
+    const normalized = String(stateName || '').trim().toLowerCase();
+    return DATA.us.states.find(state =>
+        state.full.toLowerCase() === normalized || state.abbr.toLowerCase() === normalized
+    ) || null;
+}
+
 async function fetchPerson(locale) {
     try {
         const resp = await fetchWithTimeout(`https://fakerapi.it/api/v2/persons?_quantity=1&_locale=${locale}`, {}, 7000);

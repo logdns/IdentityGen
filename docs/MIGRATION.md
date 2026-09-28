@@ -2,6 +2,23 @@
 
 本文档用于从没有后台版本更新功能的旧版本迁移到新版。
 
+## 迁移到 v1.2.13
+
+v1.2.13 接入 RandomUser 国籍接口，并收紧配置文件、代理限流与服务监听边界。
+
+### 变更内容
+
+- 随机美国/英国身份优先从 RandomUser v1.4 获取，分别使用 `nat=us` 和 `nat=gb`；指定州/地区时仍使用 Nominatim，失败时回退 FakerAPI、Nominatim 或本地数据。
+- 静态服务拒绝 `config.json` 及常见 `config.*`、`config-*`、`config_*` 备份名称，避免凭据副本被公开下载。
+- 文档中的配置备份移到网站根目录之外，`.gitignore` 同时排除 `config*.json`。
+- 默认只监听 `127.0.0.1`；只有明确设置 `HOST` 才监听其他地址。
+- 仅当直接连接来自回环地址时，登录限流才信任 Nginx 覆盖写入的 `X-Real-IP`，避免所有代理用户共享一个失败次数桶。
+- Google Maps 浏览器 Key 文档增加 HTTP referrer、Maps Embed API、配额和轮换要求。
+
+### 升级注意
+
+Nginx/PM2 部署无需新增参数，默认回环监听与现有 `proxy_pass http://127.0.0.1:3002` 相匹配。容器或受信局域网确需监听全部接口时，显式设置 `HOST=0.0.0.0`，并使用防火墙和 HTTPS 反向代理限制访问。
+
 ## 迁移到 v1.2.12
 
 v1.2.12 加强首次安装凭据、管理会话和 HTTP 响应安全。
@@ -29,11 +46,12 @@ IdentityGen 的后台数据都保存在服务器运行时文件 `config.json` �
 
 ### 升级前备份
 
-在服务器网站目录执行：
+先在网站根目录之外建立仅管理员可访问的备份目录，再执行备份：
 
 ```bash
+sudo install -d -m 700 /www/backups/identitygen
 cd /www/wwwroot/identitygen
-cp config.json config.backup.$(date +%Y%m%d-%H%M%S).json
+sudo cp config.json /www/backups/identitygen/config.$(date +%Y%m%d-%H%M%S).json
 git status --short config.json
 ```
 
@@ -55,7 +73,7 @@ A  config.json
 
 ```bash
 git rm --cached config.json
-printf "\nconfig.json\nconfig.backup.*.json\n" >> .gitignore
+printf "\nconfig*.json\n" >> .gitignore
 git add .gitignore
 git commit -m "fix: stop tracking runtime config"
 ```
@@ -107,8 +125,9 @@ cp identitygen/config.json identitygen-new/config.json
 如果新目录已经自动生成了一个新的 `config.json`，先备份再覆盖：
 
 ```bash
+sudo install -d -m 700 /www/backups/identitygen
 cd /www/wwwroot/identitygen-new
-cp config.json config.fresh.json
+sudo cp config.json /www/backups/identitygen/config.fresh.$(date +%Y%m%d-%H%M%S).json
 cp ../identitygen/config.json ./config.json
 ```
 
@@ -525,12 +544,23 @@ git stash show -p stash@{0}
 
 ### 发布版本规范
 
-新版本发布时需要同步推送 `main` 分支和版本 tag：
+新版本发布时，从已审核提交创建 tag，并同步推送 `main` 与 tag：
 
 ```bash
-git tag -a v1.1.0 -m "Release v1.1.0"
+test "$(cat VERSION)" = "1.2.13"
+git tag -a v1.2.13 -m "Release v1.2.13"
 git push origin main
-git push origin v1.1.0
+git push origin v1.2.13
 ```
 
 后台显示的版本号来自仓库根目录的 `VERSION` 文件。发布新版本时，请先更新 `VERSION` 文件，再提交和打 tag。
+
+发布包必须从不可变 tag 构建，不能从未提交的工作区打包；同时生成 SHA-256 清单，并在上传后核对远端制品：
+
+```bash
+git archive --format=tar.gz --prefix=IdentityGen-v1.2.13/ -o IdentityGen-v1.2.13.tar.gz v1.2.13
+git archive --format=zip --prefix=IdentityGen-v1.2.13/ -o IdentityGen-v1.2.13.zip v1.2.13
+shasum -a 256 IdentityGen-v1.2.13.tar.gz IdentityGen-v1.2.13.zip > SHA256SUMS
+```
+
+版本 tag 应启用 GitHub tag ruleset 保护；Release 创建和制品替换权限只授予发布维护者。条件允许时使用签名 tag 或 provenance attestation，并开启 immutable releases。

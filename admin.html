@@ -980,13 +980,13 @@
             </div>
         </div>
 
-        <!-- 3. FakerAPI -->
+        <!-- 3. Identity data API -->
         <div class="section-card">
-            <div class="section-header"><span class="section-icon">🔗</span><span class="section-title">FakerAPI
+            <div class="section-header"><span class="section-icon">🔗</span><span class="section-title">RandomUser API
                     设置</span></div>
             <p class="section-desc">
-                身份数据来自 <a href="https://fakerapi.it" target="_blank" rel="noopener noreferrer">FakerAPI.it</a> —— 免费、无需注册、无需 API Key。<br>
-                如 API 不可用，系统将自动回退到本地随机数据生成。
+                地址和身份数据优先来自 <a href="https://randomuser.me/documentation#nationalities" target="_blank" rel="noopener noreferrer">RandomUser</a>，并使用 <code>nat=us</code> / <code>nat=gb</code> 限定国籍。免费、无需注册、无需 API Key。<br>
+                如接口不可用，系统将自动回退到 FakerAPI、Nominatim 或本地随机数据。
             </p>
             <div class="field">
                 <button class="btn-save" onclick="testAPI()">🧪 测试 API 连接</button>
@@ -1411,15 +1411,16 @@
             }
         }
 
-        // ── FakerAPI Test ──
+        // ── RandomUser API Test ──
         async function testAPI() {
             const el = document.getElementById('api-status');
             setStatus(el, 'info', '正在测试...');
             try {
-                const r = await fetch('https://fakerapi.it/api/v2/persons?_quantity=1&_locale=en_US');
+                const r = await fetch('https://randomuser.me/api/1.4/?nat=us&results=1&inc=name,location,nat&noinfo');
                 const j = await r.json();
-                if (j.status === 'OK') {
-                    setStatus(el, 'ok', `✅ FakerAPI 连接正常 - 返回数据: ${j.data[0].firstname} ${j.data[0].lastname}`);
+                if (r.ok && Array.isArray(j.results) && j.results[0]) {
+                    const user = j.results[0];
+                    setStatus(el, 'ok', `✅ RandomUser 连接正常 - 返回数据: ${user.name.first} ${user.name.last}, ${user.location.city}`);
                 } else {
                     setStatus(el, 'warn', '⚠️ API 返回异常');
                 }

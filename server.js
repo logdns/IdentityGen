@@ -9,6 +9,7 @@
  *   node server.js              → starts on port 3002
  *   node server.js 8080         → starts on port 8080
  *   PORT=8080 node server.js    → starts on port 8080
+ *   HOST=0.0.0.0 node server.js → explicitly exposes all interfaces
  */
 
 const http = require('http');
@@ -17,12 +18,14 @@ const fs = require('fs');
 const path = require('path');
 const { execFile, spawn } = require('child_process');
 const crypto = require('crypto');
+const net = require('net');
 const { promisify } = require('util');
 
 const execFileAsync = promisify(execFile);
 
 // ─── Configuration ───
 const PORT = process.argv[2] || process.env.PORT || 3002;
+const HOST = process.env.HOST || '127.0.0.1';
 const ROOT = __dirname;
 const CONFIG_FILE = path.join(ROOT, 'config.json');
 const VERSION_FILE = path.join(ROOT, 'VERSION');
@@ -99,7 +102,19 @@ function isAuthenticated(input, config) {
 }
 
 function getClientKey(req) {
-    return (req && req.socket && req.socket.remoteAddress) || 'unknown';
+    const peer = (req && req.socket && req.socket.remoteAddress) || 'unknown';
+    const normalizedPeer = peer.startsWith('::ffff:') ? peer.slice(7) : peer;
+    const isLoopbackPeer = normalizedPeer === '::1' || normalizedPeer.startsWith('127.');
+
+    // Trust the documented Nginx X-Real-IP header only when the direct peer is
+    // loopback. Direct clients cannot create arbitrary limiter identities.
+    const forwarded = req && req.headers && req.headers['x-real-ip'];
+    if (isLoopbackPeer && typeof forwarded === 'string') {
+        const clientAddress = forwarded.trim();
+        if (net.isIP(clientAddress)) return `proxy:${clientAddress}`;
+    }
+
+    return `socket:${peer}`;
 }
 
 function canAttemptLogin(req) {
@@ -891,9 +906,14 @@ async function handleAPI(req, res, parsedUrl) {
 function serveStatic(req, res, filePath) {
     const rel = path.relative(ROOT, filePath);
     const parts = rel.split(path.sep);
+    const basename = path.basename(filePath).toLowerCase();
+    const isConfigFile = basename === 'config.json'
+        || basename.startsWith('config.')
+        || basename.startsWith('config-')
+        || basename.startsWith('config_');
 
-    // Block direct access to runtime config and hidden/internal files.
-    if (path.basename(filePath) === 'config.json' || parts.some(part => part.startsWith('.'))) {
+    // Block runtime config, its common backup variants, and hidden/internal files.
+    if (isConfigFile || parts.some(part => part.startsWith('.'))) {
         res.writeHead(403, { 'Content-Type': 'text/plain' });
         return res.end('Forbidden');
     }
@@ -976,13 +996,13 @@ const server = http.createServer(async (req, res) => {
     serveStatic(req, res, filePath);
 });
 
-server.listen(PORT, () => {
+server.listen(PORT, HOST, () => {
     console.log('');
     console.log('  ╔══════════════════════════════════════════╗');
     console.log('  ║       ⚡ IdentityGen Server             ║');
     console.log('  ╠══════════════════════════════════════════╣');
-    console.log(`  ║  🌐 http://localhost:${PORT}               ║`);
-    console.log(`  ║  🔧 Admin: http://localhost:${PORT}/admin.html ║`);
+    console.log(`  ║  🌐 http://${HOST}:${PORT}               ║`);
+    console.log(`  ║  🔧 Admin: http://${HOST}:${PORT}/admin.html ║`);
     console.log('  ║  📋 Press Ctrl+C to stop                ║');
     console.log('  ╚══════════════════════════════════════════╝');
     console.log('');

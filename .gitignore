@@ -13,6 +13,8 @@ node_modules/
 
 # Runtime config (contains password, generated on first run)
 config.json
+config*.json
+!config.example.json
 
 # Misc
 *.log

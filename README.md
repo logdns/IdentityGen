@@ -45,8 +45,8 @@
 - ⬆️ **后台更新** — 后台检查 GitHub 版本并执行安全更新
 - 🧩 **Arco Design 风格界面** — 保持零依赖部署，采用 Arco 的紧凑间距、中性表面、主色按钮和响应式卡片布局
 - 🎨 **轻量 UI** — 前台和后台统一使用 CSS 变量、卡片、状态提示和暗色主题，不依赖 React 或构建工具
-- 🔄 **真实地址** — 通过 OpenStreetMap Nominatim API 获取真实地址数据
-- 👤 **真实姓名** — 通过 FakerAPI 获取真实格式的姓名和个人信息
+- 🔄 **真实地址** — 通过 RandomUser 国籍接口获取本国地址，指定州/地区时由 Nominatim 定位
+- 👤 **真实姓名** — 通过 RandomUser 获取与国籍匹配的姓名和个人信息
 
 ---
 
@@ -59,8 +59,9 @@
 | 逻辑 | 原生 JavaScript（ES2017+） |
 | 字体 | Google Fonts（Inter、JetBrains Mono） |
 | 后端配置 | Node.js（零依赖轻量服务器，读写 JSON 配置文件） |
-| 地址数据 | [OpenStreetMap Nominatim API](https://nominatim.openstreetmap.org/) |
-| 身份数据 | [FakerAPI](https://fakerapi.it/) |
+| 地址与身份数据 | [RandomUser API](https://randomuser.me/documentation#nationalities) |
+| 指定地区地址 | [OpenStreetMap Nominatim API](https://nominatim.openstreetmap.org/) |
+| 身份回退数据 | [FakerAPI](https://fakerapi.it/) |
 | 地图展示 | Google Maps Embed |
 
 > ⚡ **轻量级架构**：零依赖 Node.js 服务器，无需数据库。配置存储在服务端 `config.json` 文件中（首次运行自动创建，不纳入版本控制），后台修改后所有客户端即时生效。主题偏好存储在浏览器 `localStorage` 中。
@@ -112,6 +113,8 @@ PORT=8080 node server.js
 # 然后打开 http://localhost:8080
 ```
 
+服务默认仅监听 `127.0.0.1`。只有在容器或受信局域网等明确需要外部监听的环境中，才设置 `HOST=0.0.0.0`，并同时配置防火墙与 HTTPS 反向代理。
+
 > 💡 **前提条件**：仅需安装 [Node.js](https://nodejs.org/)（v14+）。无需 `npm install`，零第三方依赖。
 
 首次启动会生成随机管理密码并写入服务器本机 `config.json`，请安全读取并保存。升级时保留现有非默认密码；仍使用旧默认密码 `admin` 的部署会在启动后自动轮换为随机密码，需从服务器本机 `config.json` 读取。生产环境不要将 Node.js 端口直接暴露到公网，管理后台必须经 HTTPS 反向代理访问。
@@ -141,8 +144,13 @@ PORT=8080 node server.js
 1. 访问 [Google Cloud Console](https://console.cloud.google.com/)
 2. 创建新项目或选择现有项目
 3. 启用 **Maps Embed API**
-4. 在"凭据"页面创建 API Key
-5. 将 API Key 填入后台设置
+4. 在"凭据"页面创建浏览器 API Key
+5. 将“应用限制”设为 **网站（HTTP referrer）**，只允许实际生产域名
+6. 将“API 限制”设为仅允许 **Maps Embed API**
+7. 配置合理配额和账单告警；如果 Key 曾以宽松权限使用，请轮换
+8. 将 API Key 填入后台设置
+
+> 浏览器地图 Key 会按 Google Maps 的设计发送到访客浏览器，并不是服务端秘密。安全边界依赖 Google Cloud 中的来源域名、API 范围和配额限制。
 
 ---
 
@@ -184,7 +192,7 @@ pm2 save
 pm2 startup
 ```
 
-生产环境必须通过 HTTPS 反向代理访问，建议 Node.js 仅监听回环接口。直接以 HTTP 暴露服务会明文传输管理密码和会话凭据。
+服务默认监听 `127.0.0.1`。生产环境必须通过 HTTPS 反向代理访问；直接以 HTTP 暴露服务会明文传输管理密码和会话凭据。容器或局域网部署若确需监听全部接口，应显式设置 `HOST=0.0.0.0` 并通过防火墙限制来源。
 
 需要的文件：
 ```
@@ -413,15 +421,23 @@ pm2 restart identitygen
 
 本项目使用以下第三方 API（均为免费公开服务）：
 
+### RandomUser
+- **用途**：生成与美国、英国国籍匹配的地址、姓名、电话和证件信息
+- **接口地址**：`https://randomuser.me/api/1.4/`
+- **国籍参数**：美国使用 `nat=us`，英国使用 `nat=gb`
+- **认证**：无需（免费公开）
+- **文档**：[https://randomuser.me/documentation#nationalities](https://randomuser.me/documentation#nationalities)
+- **回退策略**：接口不可用时，身份数据回退到 FakerAPI；地址回退到 Nominatim 或本地数据
+
 ### FakerAPI
-- **用途**：生成随机姓名、邮箱和个人信息
+- **用途**：RandomUser 不可用时，生成随机姓名、邮箱和个人信息
 - **接口地址**：`https://fakerapi.it/api/v2/persons`
 - **认证**：无需（免费公开）
 - **限制**：有速率限制，超出后自动回退到本地数据生成
 - **文档**：[https://fakerapi.it/en](https://fakerapi.it/en)
 
 ### OpenStreetMap Nominatim
-- **用途**：反向地理编码，获取真实地址数据
+- **用途**：用户明确选择州/地区时反向地理编码，确保地址位于所选范围；也是地址回退来源
 - **接口地址**：`https://nominatim.openstreetmap.org/reverse`
 - **认证**：无需（免费公开）
 - **限制**：最大 1 请求/秒
@@ -456,7 +472,7 @@ git commit -m "fix: stop tracking config.json"
 ```
 
 ### Q: 为什么有时候地址数据加载较慢？
-**A:** Nominatim API 有速率限制（1 请求/秒）。系统会最多尝试 10 次获取有效地址。如果所有尝试都失败，将使用本地随机数据。
+**A:** 随机地区优先直接使用 RandomUser 地址；明确选择州/地区时会调用 Nominatim，而该 API 有速率限制（1 请求/秒）。系统会最多尝试 10 次获取有效地址，如果失败则使用本地随机数据。
 
 ### Q: 如何完全离线使用？
 **A:** 可以直接使用，但当 API 不可用时将自动回退到本地数据。地图功能需要网络连接。
