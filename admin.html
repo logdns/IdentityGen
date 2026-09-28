@@ -980,17 +980,20 @@
             </div>
         </div>
 
-        <!-- 3. Identity data API -->
+        <!-- 3. Identity and address APIs -->
         <div class="section-card">
-            <div class="section-header"><span class="section-icon">🔗</span><span class="section-title">RandomUser API
-                    设置</span></div>
+            <div class="section-header"><span class="section-icon">🔗</span><span class="section-title">身份与地址数据 API</span></div>
             <p class="section-desc">
-                地址和身份数据优先来自 <a href="https://randomuser.me/documentation#nationalities" target="_blank" rel="noopener noreferrer">RandomUser</a>，并使用 <code>nat=us</code> / <code>nat=gb</code> 限定国籍。免费、无需注册、无需 API Key。<br>
-                如接口不可用，系统将自动回退到 FakerAPI、Nominatim 或本地随机数据。
+                姓名和身份数据优先来自 <a href="https://fakerapi.it" target="_blank" rel="noopener noreferrer">FakerAPI</a>；随机地区地址来自 <a href="https://randomuser.me/documentation#nationalities" target="_blank" rel="noopener noreferrer">RandomUser</a>，并使用 <code>nat=us</code> / <code>nat=gb</code> 限定国籍。两个接口均免费、无需 API Key。<br>
+                指定州/地区时使用 Nominatim；任一接口不可用时会自动使用另一接口可用字段或本地随机数据。
             </p>
             <div class="field">
-                <button class="btn-save" onclick="testAPI()">🧪 测试 API 连接</button>
-                <div id="api-status"></div>
+                <div class="field-row">
+                    <button class="btn-save" onclick="testRandomUserAPI()">🧪 测试 RandomUser</button>
+                    <button class="btn-save" onclick="testFakerAPI()">🧪 测试 FakerAPI</button>
+                </div>
+                <div id="randomuser-api-status"></div>
+                <div id="faker-api-status"></div>
             </div>
         </div>
 
@@ -1411,9 +1414,9 @@
             }
         }
 
-        // ── RandomUser API Test ──
-        async function testAPI() {
-            const el = document.getElementById('api-status');
+        // ── Identity and address API tests ──
+        async function testRandomUserAPI() {
+            const el = document.getElementById('randomuser-api-status');
             setStatus(el, 'info', '正在测试...');
             try {
                 const r = await fetch('https://randomuser.me/api/1.4/?nat=us&results=1&inc=name,location,nat&noinfo');
@@ -1426,6 +1429,23 @@
                 }
             } catch (e) {
                 setStatus(el, 'warn', '❌ 连接失败，将使用本地数据');
+            }
+        }
+
+        async function testFakerAPI() {
+            const el = document.getElementById('faker-api-status');
+            setStatus(el, 'info', '正在测试...');
+            try {
+                const r = await fetch('https://fakerapi.it/api/v2/persons?_quantity=1&_locale=en_US');
+                const j = await r.json();
+                if (r.ok && j.status === 'OK' && Array.isArray(j.data) && j.data[0]) {
+                    const person = j.data[0];
+                    setStatus(el, 'ok', `✅ FakerAPI 连接正常 - 返回数据: ${person.firstname} ${person.lastname}`);
+                } else {
+                    setStatus(el, 'warn', '⚠️ FakerAPI 返回异常');
+                }
+            } catch (e) {
+                setStatus(el, 'warn', '❌ FakerAPI 连接失败，将使用备用或本地数据');
             }
         }
 

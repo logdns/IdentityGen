@@ -1,5 +1,5 @@
 // ═══════════════════════════════════════════════
-// APP.JS — RandomUser + FakerAPI/Nominatim fallbacks + i18n + Map
+// APP.JS — FakerAPI identities + RandomUser/Nominatim addresses + i18n + Map
 // ═══════════════════════════════════════════════
 
 let currentCountry = 'us';
@@ -743,18 +743,18 @@ async function generateUS(generationId) {
     const selVal = $('region-select').value;
     const selectedState = selVal ? DATA.us.states.find(s => s.abbr === selVal) : null;
 
-    // RandomUser supplies a coherent US identity and address. Nominatim remains
-    // the address source when a specific state is selected, because RandomUser's
-    // nationality filter cannot constrain results to a state.
-    const [sourceData, selectedAddr] = await Promise.all([
-        fetchIdentitySource('us', 'en_US'),
+    // Keep FakerAPI as the primary identity source. RandomUser supplies the
+    // address for a random state; Nominatim handles an explicitly selected state.
+    const [fakerPerson, randomUser, selectedAddr] = await Promise.all([
+        fetchPerson('en_US'),
+        fetchRandomUser('us'),
         selectedState ? fetchRealAddress(STATE_COORDS[selectedState.abbr]) : Promise.resolve(null)
     ]);
 
     if (generationId !== generationSeq) return;
 
-    const person = sourceData.person || localPerson('us');
-    const apiAddr = !selectedState ? sourceData.address : null;
+    const person = fakerPerson || (randomUser && randomUser.person) || localPerson('us');
+    const apiAddr = !selectedState && randomUser && randomUser.address;
     const matchedState = apiAddr ? findUSState(apiAddr.state) : null;
     const fallbackState = pick(DATA.us.states);
     const st = selectedState || matchedState || (apiAddr && apiAddr.state
@@ -774,7 +774,7 @@ async function generateUS(generationId) {
         zip = genUSZip();
     }
 
-    const phone = !selectedState && sourceData.phone ? sourceData.phone : genUSPhone(abbr);
+    const phone = !selectedState && randomUser && randomUser.phone ? randomUser.phone : genUSPhone(abbr);
     // Full address format: 街道地址, 城市, State, 邮编
     const stateLabel = abbr ? `${st.full} (${abbr})` : st.full;
     const fullAddr = `${street}, ${city}, ${st.full}${abbr ? ` ${abbr}` : ''}, ${zip}`;
@@ -786,7 +786,7 @@ async function generateUS(generationId) {
         phone, email: person.email || genEmail(person.firstname, person.lastname, 'us'),
         address: street, city,
         state: stateLabel, zip,
-        ssn: sourceData.id || genSSN(),
+        ssn: (!selectedState && randomUser && randomUser.id) || genSSN(),
         website: person.website || '—',
         fullAddress: fullAddr,
         lat: realAddr ? realAddr.lat : null,
@@ -794,22 +794,23 @@ async function generateUS(generationId) {
     };
 
     renderIdentity();
-    updateMap(fullAddr);
+    updateMap(fullAddr, currentIdentity.lat, currentIdentity.lng);
 }
 
 async function generateUK(generationId) {
     const selVal = $('region-select').value;
     const selectedRegion = selVal || '';
 
-    const [sourceData, selectedAddr] = await Promise.all([
-        fetchIdentitySource('gb', 'en_GB'),
+    const [fakerPerson, randomUser, selectedAddr] = await Promise.all([
+        fetchPerson('en_GB'),
+        fetchRandomUser('gb'),
         selectedRegion ? fetchRealAddress(REGION_COORDS[selectedRegion]) : Promise.resolve(null)
     ]);
 
     if (generationId !== generationSeq) return;
 
-    const person = sourceData.person || localPerson('uk');
-    const apiAddr = !selectedRegion ? sourceData.address : null;
+    const person = fakerPerson || (randomUser && randomUser.person) || localPerson('uk');
+    const apiAddr = !selectedRegion && randomUser && randomUser.address;
     const fallbackRegion = pick(DATA.uk.regions);
     const region = selectedRegion || (apiAddr && apiAddr.state) || fallbackRegion;
     const realAddr = selectedAddr || apiAddr;
@@ -825,7 +826,7 @@ async function generateUK(generationId) {
         zip = genUKPostcode(selectedRegion || fallbackRegion);
     }
 
-    const phone = !selectedRegion && sourceData.phone ? sourceData.phone : genUKPhone(selectedRegion || fallbackRegion);
+    const phone = !selectedRegion && randomUser && randomUser.phone ? randomUser.phone : genUKPhone(selectedRegion || fallbackRegion);
     const fullAddr = `${street}, ${city}, ${region}, ${zip}`;
 
     currentIdentity = {
@@ -834,7 +835,7 @@ async function generateUK(generationId) {
         dob: person.birthday || genDOB(randInt(18, 75)),
         phone, email: person.email || genEmail(person.firstname, person.lastname, 'uk'),
         address: street, city, state: region, zip,
-        ssn: sourceData.id || genNI(),
+        ssn: (!selectedRegion && randomUser && randomUser.id) || genNI(),
         website: person.website || '—',
         fullAddress: fullAddr,
         lat: realAddr ? realAddr.lat : null,
@@ -842,11 +843,11 @@ async function generateUK(generationId) {
     };
 
     renderIdentity();
-    updateMap(fullAddr);
+    updateMap(fullAddr, currentIdentity.lat, currentIdentity.lng);
 }
 
 // ═══════════════════════════════════════
-// RandomUser primary source + FakerAPI fallback
+// FakerAPI identity source + RandomUser address source/fallback identity
 // ═══════════════════════════════════════
 async function fetchRandomUser(nationality) {
     try {
@@ -889,14 +890,6 @@ async function fetchRandomUser(nationality) {
         };
     } catch (e) { /* use the next source */ }
     return null;
-}
-
-async function fetchIdentitySource(nationality, locale) {
-    const randomUser = await fetchRandomUser(nationality);
-    if (randomUser) return randomUser;
-
-    const fakerPerson = await fetchPerson(locale);
-    return { person: fakerPerson, address: null, phone: '', id: '' };
 }
 
 function findUSState(stateName) {
@@ -982,14 +975,16 @@ function renderIdentity() {
 // ═══════════════════════════════════════
 // Map
 // ═══════════════════════════════════════
-function updateMap(address) {
+function updateMap(address, lat = null, lng = null) {
     const iframe = $('map-iframe');
     const provider = gc('map_provider') || 'osm';
     const key = gc('google_maps_key') || '';
+    const hasCoordinates = Number.isFinite(Number(lat)) && Number.isFinite(Number(lng));
+    const location = hasCoordinates ? `${Number(lat)},${Number(lng)}` : address;
     if (provider === 'google' && key) {
-        iframe.src = `https://www.google.com/maps/embed/v1/place?key=${encodeURIComponent(key)}&q=${encodeURIComponent(address)}`;
+        iframe.src = `https://www.google.com/maps/embed/v1/place?key=${encodeURIComponent(key)}&q=${encodeURIComponent(location)}`;
     } else {
-        iframe.src = `https://maps.google.com/maps?q=${encodeURIComponent(address)}&t=&z=14&ie=UTF8&iwloc=&output=embed`;
+        iframe.src = `https://maps.google.com/maps?q=${encodeURIComponent(location)}&t=&z=14&ie=UTF8&iwloc=&output=embed`;
     }
 }
 

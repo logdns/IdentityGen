@@ -46,7 +46,7 @@
 - 🧩 **Arco Design 风格界面** — 保持零依赖部署，采用 Arco 的紧凑间距、中性表面、主色按钮和响应式卡片布局
 - 🎨 **轻量 UI** — 前台和后台统一使用 CSS 变量、卡片、状态提示和暗色主题，不依赖 React 或构建工具
 - 🔄 **真实地址** — 通过 RandomUser 国籍接口获取本国地址，指定州/地区时由 Nominatim 定位
-- 👤 **真实姓名** — 通过 RandomUser 获取与国籍匹配的姓名和个人信息
+- 👤 **真实姓名** — 保留 FakerAPI 作为主要姓名和个人信息来源
 
 ---
 
@@ -59,9 +59,9 @@
 | 逻辑 | 原生 JavaScript（ES2017+） |
 | 字体 | Google Fonts（Inter、JetBrains Mono） |
 | 后端配置 | Node.js（零依赖轻量服务器，读写 JSON 配置文件） |
-| 地址与身份数据 | [RandomUser API](https://randomuser.me/documentation#nationalities) |
+| 随机地区地址 | [RandomUser API](https://randomuser.me/documentation#nationalities) |
 | 指定地区地址 | [OpenStreetMap Nominatim API](https://nominatim.openstreetmap.org/) |
-| 身份回退数据 | [FakerAPI](https://fakerapi.it/) |
+| 身份数据 | [FakerAPI](https://fakerapi.it/) |
 | 地图展示 | Google Maps Embed |
 
 > ⚡ **轻量级架构**：零依赖 Node.js 服务器，无需数据库。配置存储在服务端 `config.json` 文件中（首次运行自动创建，不纳入版本控制），后台修改后所有客户端即时生效。主题偏好存储在浏览器 `localStorage` 中。
@@ -422,18 +422,18 @@ pm2 restart identitygen
 本项目使用以下第三方 API（均为免费公开服务）：
 
 ### RandomUser
-- **用途**：生成与美国、英国国籍匹配的地址、姓名、电话和证件信息
+- **用途**：生成与美国、英国国籍匹配的随机地区地址；FakerAPI 不可用时可提供备用身份字段
 - **接口地址**：`https://randomuser.me/api/1.4/`
 - **国籍参数**：美国使用 `nat=us`，英国使用 `nat=gb`
 - **认证**：无需（免费公开）
 - **文档**：[https://randomuser.me/documentation#nationalities](https://randomuser.me/documentation#nationalities)
-- **回退策略**：接口不可用时，身份数据回退到 FakerAPI；地址回退到 Nominatim 或本地数据
+- **回退策略**：接口不可用时，地址回退到本地数据；指定地区地址仍由 Nominatim 提供
 
 ### FakerAPI
-- **用途**：RandomUser 不可用时，生成随机姓名、邮箱和个人信息
+- **用途**：主要身份接口，用于生成随机姓名、邮箱和个人信息
 - **接口地址**：`https://fakerapi.it/api/v2/persons`
 - **认证**：无需（免费公开）
-- **限制**：有速率限制，超出后自动回退到本地数据生成
+- **限制**：有速率限制，超出后自动回退到 RandomUser 可用字段或本地数据生成
 - **文档**：[https://fakerapi.it/en](https://fakerapi.it/en)
 
 ### OpenStreetMap Nominatim
