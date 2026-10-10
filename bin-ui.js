@@ -79,6 +79,15 @@
     let loading = false;
     const t = key => (messages[document.documentElement.lang] || messages.en)[key] || messages.en[key] || messages.en.error;
 
+    function countryLabel(country = {}) {
+        const code = typeof country.code === 'string' ? country.code.trim().toUpperCase() : '';
+        const flag = /^[A-Z]{2}$/.test(code)
+            ? String.fromCodePoint(...Array.from(code, letter => 0x1F1E6 + letter.charCodeAt(0) - 65))
+            : '';
+        const label = [country.name, code].filter(Boolean).join(' / ');
+        return [flag, label].filter(Boolean).join(' ');
+    }
+
     function render() {
         document.querySelectorAll('[data-bin-i18n]').forEach(el => { el.textContent = t(el.dataset.binI18n); });
         $('bin-close').setAttribute('aria-label', t('close'));
@@ -99,7 +108,7 @@
             const dt = document.createElement('dt');
             const dd = document.createElement('dd');
             dt.textContent = t(key);
-            const value = key === 'country' ? [result.country.name, result.country.code].filter(Boolean).join(' / ') : result[key];
+            const value = key === 'country' ? countryLabel(result.country) : result[key];
             dd.textContent = typeof value === 'boolean' ? t(value ? 'yes' : 'no') : value === null || value === undefined || value === '' ? t('unknown') : String(value);
             const cell = document.createElement('div');
             cell.append(dt, dd);

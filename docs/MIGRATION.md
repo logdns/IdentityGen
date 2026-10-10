@@ -2,6 +2,10 @@
 
 本文档用于从没有后台版本更新功能的旧版本迁移到新版。
 
+## 迁移到 v1.2.18
+
+v1.2.18 在导航栏 Card BIN/IIN 前新增 🏦 图标，查询结果根据两位国家代码显示对应国旗（兼容 HandyAPI 和 Binlist）。缺少或格式错误的代码不显示国旗，保留国家文本。更新前端资源缓存版本，并新增国旗、未知国家和导航图标回归测试。升级时保留原有 `config.json` 和 API Key，无需新增配置。
+
 ## 迁移到 v1.2.17
 
 v1.2.17 增加右上角 Card BIN/IIN 查询和后台配置/测试，HandyAPI 为主源、Binlist 为备用源。文件上传升级必须新增 `bin-lookup.js` 与 `bin-ui.js`，并重启 Node.js 服务。现有 `config.json` 保留不覆盖，新 `card_bin` 配置会自动补齐；请在后台保存 HandyAPI Key，真实 Key 不包含在发布文件中。Secret Key 留空保留，清除使用专用按钮。所有兼容密码验证共享登录尝试限制；客户端 POST 中断、上游错误响应采用请求级异常处理，敏感 API 禁止缓存。
@@ -567,10 +571,10 @@ git stash show -p stash@{0}
 新版本发布时，从已审核提交创建 tag，并同步推送 `main` 与 tag：
 
 ```bash
-test "$(cat VERSION)" = "1.2.17"
-git tag -a v1.2.17 -m "Release v1.2.17"
+test "$(cat VERSION)" = "1.2.18"
+git tag -a v1.2.18 -m "Release v1.2.18"
 git push origin main
-git push origin v1.2.17
+git push origin v1.2.18
 ```
 
 后台显示的版本号来自仓库根目录的 `VERSION` 文件。发布新版本时，请先更新 `VERSION` 文件，再提交和打 tag。
@@ -578,9 +582,9 @@ git push origin v1.2.17
 发布包必须从不可变 tag 构建，不能从未提交的工作区打包；同时生成 SHA-256 清单，并在上传后核对远端制品：
 
 ```bash
-git archive --format=tar.gz --prefix=IdentityGen-v1.2.17/ -o IdentityGen-v1.2.17.tar.gz v1.2.17
-git archive --format=zip --prefix=IdentityGen-v1.2.17/ -o IdentityGen-v1.2.17.zip v1.2.17
-shasum -a 256 IdentityGen-v1.2.17.tar.gz IdentityGen-v1.2.17.zip > SHA256SUMS
+git archive --format=tar.gz --prefix=IdentityGen-v1.2.18/ -o IdentityGen-v1.2.18.tar.gz v1.2.18
+git archive --format=zip --prefix=IdentityGen-v1.2.18/ -o IdentityGen-v1.2.18.zip v1.2.18
+shasum -a 256 IdentityGen-v1.2.18.tar.gz IdentityGen-v1.2.18.zip > SHA256SUMS
 ```
 
 版本 tag 应启用 GitHub tag ruleset 保护；Release 创建和制品替换权限只授予发布维护者。条件允许时使用签名 tag 或 provenance attestation，并开启 immutable releases。
