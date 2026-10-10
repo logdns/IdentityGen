@@ -49,6 +49,7 @@
 - 🎨 **轻量 UI** — 前台和后台统一使用 CSS 变量、卡片、状态提示和暗色主题，不依赖 React 或构建工具
 - 🔄 **真实地址** — 通过 RandomUser 国籍接口获取本国地址，指定州/地区时由 Nominatim 定位
 - 👤 **真实姓名** — 保留 FakerAPI 作为主要姓名和个人信息来源
+- 💳 **Card BIN/IIN 查询** — 右上角查询 6 位 BIN / 8 位 IIN，HandyAPI 主源、Binlist 回退，显示发卡行、卡组织、类型、国家和来源精度
 
 ---
 
@@ -84,6 +85,9 @@ identitygen/
 │   └── MIGRATION.md     # 旧版本迁移指南
 ├── style.css            # 全局样式 — 亮色/暗色主题
 ├── app.js               # 主逻辑 — 生成、i18n、地图、粒子动画
+├── bin-ui.js            # BIN 查询弹窗 — 四语言、键盘导航、结果与错误提示
+├── bin-lookup.js        # 服务端 BIN 查询 — 双源回退、缓存、上游配额和超时
+├── tests/               # Node.js 零依赖回归测试
 ├── data.js              # 静态数据 — US/UK/DE/TR 地区、城市、街道、姓名等
 └── README.md            # 项目文档（本文件）
 ```
@@ -117,7 +121,7 @@ PORT=8080 node server.js
 
 服务默认仅监听 `127.0.0.1`。只有在容器或受信局域网等明确需要外部监听的环境中，才设置 `HOST=0.0.0.0`，并同时配置防火墙与 HTTPS 反向代理。
 
-> 💡 **前提条件**：仅需安装 [Node.js](https://nodejs.org/)（v14+）。无需 `npm install`，零第三方依赖。
+> 💡 **前提条件**：建议安装受支持的 [Node.js](https://nodejs.org/) LTS（22/24）。服务端最低兼容 14.18；运行 `node --test` 回归测试需 Node 18+。无需 `npm install`，零第三方依赖。
 
 首次启动会生成随机管理密码并写入服务器本机 `config.json`，请安全读取并保存。升级时保留现有非默认密码；仍使用旧默认密码 `admin` 的部署会在启动后自动轮换为随机密码，需从服务器本机 `config.json` 读取。生产环境不要将 Node.js 端口直接暴露到公网，管理后台必须经 HTTPS 反向代理访问。
 
@@ -135,6 +139,7 @@ PORT=8080 node server.js
 | 网站标题 | 自定义 Logo 文字 | `IdentityGen` |
 | 页脚文字 | 自定义页脚内容（支持 HTML） | `© 2026 IdentityGen.Xyz` |
 | 默认语言 | 前台默认显示语言 | English |
+| Card BIN/IIN | 启用查询、HandyAPI 双 Key、Binlist 回退和独立测试 | 启用查询/回退；Key 留空 |
 | 广告位 | Head / AdSense、顶部、信息区下方、地图下方广告代码 | 关闭 |
 | 加密币捐赠 | 前台底部捐赠地址列表 | 关闭 |
 | 系统版本 | 检查远端版本、执行安全更新 | 当前 Git 版本 |
@@ -153,6 +158,22 @@ PORT=8080 node server.js
 8. 将 API Key 填入后台设置
 
 > 浏览器地图 Key 会按 Google Maps 的设计发送到访客浏览器，并不是服务端秘密。安全边界依赖 Google Cloud 中的来源域名、API 范围和配额限制。
+
+### Card BIN/IIN 配置与接口
+
+1. 在后台「Card BIN/IIN 查询」保存 HandyAPI 的 Publishable / Secret Key。Secret 输入留空保留已有值，清除需点击专用按钮。
+2. 两个 Key 均通过服务端代理请求。Secret 不会通过公开配置、登录响应、管理员配置响应或查询结果回传；模板和 Git 不包含真实 Key。
+3. HandyAPI 使用 `https://data.handyapi.com/bin/{bin}` 和 `x-api-key`，优先 Secret，未配置时使用 Publishable。失败后（含超时、无记录、格式错误和上游限流）回退 Binlist；不覆盖成功结果的未知字段，避免混拼不同卡段。
+4. Binlist 使用 `Accept-Version: 3`。其免费服务不保证 8 位精度，因此回退只查询前 6 位，前台明确显示近似匹配；未知字段保留未知。Luhn 字段仅代表卡号格式支持，不是完整卡号的校验结果。
+5. 公开查询：`POST /api?action=binlookup`，JSON body 为 `{"bin":"535316"}`。只接受恰好 6 位或 8 位数字；完整卡号、7 位、其他字符会拒绝，不截断、不存储完整卡号。BIN 放请求体而非查询字符串，避免常规 URL 访问日志记录。
+6. 管理配置：`binsettings` / `savebin` 与指定 `provider: "handyapi" | "binlist"` 测试需要管理员认证。前台不需要管理密码。
+7. 成功结果缓存 24 小时、最多 500 条；并发相同查询合并。每客户端 12 次/分钟、每进程最多 30 次上游请求/分钟、8 个并发任务；Binlist 每进程最多 5 次/小时，收到 429 冷却 1 小时。独立测试同样计入配额，可能命中缓存。进程重启会重置内存缓存/计数，多实例需额外配置共享配额和反向代理限流。
+8. 每个上游请求最长 6 秒、响应不超过 32 KiB。不跟随重定向、不允许访客指定上游 URL，错误响应不泄露 Key 或上游原文。
+9. 非 200 上游响应立即终止，不继续下载错误正文；所有响应先注册错误/中断监听。API 请求中断采用请求级异常处理，不将一个客户端的失败传播到未处理 Promise。所有兼容密码验证（包括 `current_password`）共享登录失败计数；有效会话优先验证，不因他人的失败计数失效。敏感 API 响应使用 `Cache-Control: no-store`。
+
+文档：[HandyAPI GitHub](https://github.com/selay/handyapi-card-bin-list)、[HandyAPI BIN List](https://www.handyapi.com/bin-list)、[Binlist](https://binlist.net/)。Binlist 免费服务限流很低，双源回退不能保证始终可用。查询数据仅供参考，不用于验证余额、卡片有效性或持有人。
+
+运行回归测试：`node --test tests/*.test.js`（模拟上游，不消耗 API 配额，也不修改运行时配置）。
 
 ---
 
@@ -204,6 +225,8 @@ index.html
 admin.html
 style.css
 app.js
+bin-ui.js
+bin-lookup.js
 data.js
 config.example.json
 ```
@@ -220,8 +243,8 @@ config.example.json
 # 创建网站目录
 sudo mkdir -p /www/wwwroot/identitygen
 
-# 上传项目文件
-scp -r ./* user@your-server:/www/wwwroot/identitygen/
+# 只上传发布文件，不上传本机运行时 config.json
+scp server.js bin-lookup.js bin-ui.js VERSION index.html admin.html style.css app.js data.js config.example.json user@your-server:/www/wwwroot/identitygen/
 
 # 使用 PM2 持久化运行
 cd /www/wwwroot/identitygen
@@ -237,6 +260,14 @@ pm2 startup
 server {
     listen 80;
     server_name your-domain.com;
+    return 301 https://your-domain.com$request_uri;
+}
+
+server {
+    listen 443 ssl;
+    server_name your-domain.com;
+    ssl_certificate /etc/letsencrypt/live/your-domain.com/fullchain.pem;
+    ssl_certificate_key /etc/letsencrypt/live/your-domain.com/privkey.pem;
 
     # 安全头
     add_header X-Frame-Options "SAMEORIGIN";
@@ -266,13 +297,15 @@ sudo nginx -t
 sudo systemctl reload nginx
 ```
 
-#### 4. 配置 SSL（推荐）
+#### 4. 配置 SSL（生产必须）
 
 ```bash
 # 使用 Certbot 自动配置 Let's Encrypt SSL
 sudo apt install certbot python3-certbot-nginx
 sudo certbot --nginx -d your-domain.com
 ```
+
+先签发证书并替换域名/证书路径，再加载上述 HTTPS 配置。首次签发可使用 Certbot 的临时验证配置；证书配置完成前不要通过 HTTP 登录后台或提交 API Key。正式配置中端口 80 仅跳转 HTTPS，不代理后台交互。
 
 ---
 
@@ -313,6 +346,8 @@ sudo certbot --nginx -d your-domain.com
    admin.html
    style.css
    app.js
+   bin-ui.js
+   bin-lookup.js
    data.js
    config.example.json
    ```
@@ -323,7 +358,7 @@ sudo certbot --nginx -d your-domain.com
 
 ```bash
 # 使用 scp 命令
-scp server.js VERSION index.html admin.html style.css app.js data.js config.example.json root@你的服务器IP:/www/wwwroot/id.example.com/
+scp server.js bin-lookup.js bin-ui.js VERSION index.html admin.html style.css app.js data.js config.example.json root@你的服务器IP:/www/wwwroot/id.example.com/
 
 # 或使用 FileZilla 等 SFTP 工具连接上传
 ```
@@ -337,7 +372,7 @@ scp server.js VERSION index.html admin.html style.css app.js data.js config.exam
    git clone https://github.com/logdns/IdentityGen.git .
    ```
 
-#### 步骤 3：配置 SSL 证书（推荐）
+#### 步骤 3：配置 SSL 证书（生产必须）
 
 1. 点击网站列表中对应站点 → **「SSL」**
 2. 选择 **「Let's Encrypt」**
@@ -393,7 +428,7 @@ location / {
 | 问题 | 解决方案 |
 |------|----------|
 | 页面显示 404 | 检查 Node.js 服务是否正在运行，Nginx 反向代理是否配置正确 |
-| 样式/脚本未加载 | 检查 `style.css`、`app.js`、`data.js` 是否在同一目录 |
+| 样式/脚本未加载 | 检查 `style.css`、`app.js`、`data.js`、`bin-ui.js` 是否在同一目录；服务端必须包含 `bin-lookup.js` |
 | SSL 证书申请失败 | 确认域名已正确解析到服务器 IP，检查 80 端口是否开放 |
 | 后台无法登录 | 首次安装从服务器本机 `config.json` 读取生成的密码；升级保留已有强密码，旧默认密码会自动轮换；确认 Node.js 服务正在运行 |
 | 修改密码后无法登录 | 确认 `config.json` 不被 Git 追踪（已在 `.gitignore` 中），避免 `git pull` 覆盖配置 |

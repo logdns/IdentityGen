@@ -5,6 +5,12 @@
     "site_title": "",
     "site_footer": "",
     "default_language": "en",
+    "card_bin": {
+        "enabled": true,
+        "publishable_key": "",
+        "secret_key": "",
+        "binlist_fallback": true
+    },
     "ads": {
         "head": {
             "enabled": false,

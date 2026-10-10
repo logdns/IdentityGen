@@ -19,6 +19,7 @@ const path = require('path');
 const { execFile, spawn } = require('child_process');
 const crypto = require('crypto');
 const net = require('net');
+const { createBinLookup } = require('./bin-lookup');
 const { promisify } = require('util');
 
 const execFileAsync = promisify(execFile);
@@ -60,6 +61,7 @@ const DEFAULT_CONFIG = {
     site_title: '',
     site_footer: '',
     default_language: 'en',
+    card_bin: { enabled: true, publishable_key: '', secret_key: '', binlist_fallback: true },
     ads: {
         head: { enabled: false, html: '' },
         top: { enabled: false, html: '' },
@@ -89,16 +91,22 @@ function createSession() {
     return token;
 }
 
-function isAuthenticated(input, config) {
-    if (input.password && input.password === (config.password || 'admin')) return true;
+function isAuthenticated(req, input, config) {
     const token = input.token || '';
     const expires = SESSIONS.get(token);
-    if (!expires || expires < Date.now()) {
-        if (token) SESSIONS.delete(token);
-        return false;
+    if (expires && expires >= Date.now()) {
+        SESSIONS.set(token, Date.now() + SESSION_TTL);
+        return true;
     }
-    SESSIONS.set(token, Date.now() + SESSION_TTL);
-    return true;
+    if (token) SESSIONS.delete(token);
+    // Compatibility credentials must share the same budget as the login route.
+    if (!input.password || !canAttemptLogin(req)) return false;
+    if (input.password === (config.password || 'admin')) {
+        clearLoginFailures(req);
+        return true;
+    }
+    recordLoginFailure(req);
+    return false;
 }
 
 function getClientKey(req) {
@@ -260,9 +268,47 @@ function normalizeConfig(config) {
         site_title: limitString(input.site_title, 80).trim(),
         site_footer: normalizeSiteFooter(input.site_footer),
         default_language: LANGS.has(input.default_language) ? input.default_language : DEFAULT_CONFIG.default_language,
+        card_bin: normalizeBinConfig(input.card_bin),
         ads: normalizeAds(input.ads),
         donation: normalizeDonation(input.donation)
     };
+}
+
+function normalizeBinConfig(value) {
+    const input = value && typeof value === 'object' ? value : {};
+    const key = value => /^[A-Za-z0-9_-]{1,200}$/.test(String(value || '')) ? String(value) : '';
+    return {
+        enabled: input.enabled === undefined ? true : toBoolean(input.enabled),
+        publishable_key: key(input.publishable_key),
+        secret_key: key(input.secret_key),
+        binlist_fallback: input.binlist_fallback === undefined ? true : toBoolean(input.binlist_fallback)
+    };
+}
+
+function getBinAdminConfig(config) {
+    return { ...getPublicConfig(config), card_bin: {
+        enabled: config.card_bin.enabled,
+        publishable_key: config.card_bin.publishable_key,
+        secret_configured: Boolean(config.card_bin.secret_key),
+        binlist_fallback: config.card_bin.binlist_fallback
+    } };
+}
+
+const binLookup = createBinLookup();
+const BIN_CLIENTS = new Map();
+function canQueryBin(req) {
+    const now = Date.now();
+    const key = getClientKey(req);
+    for (const [client, entry] of BIN_CLIENTS) {
+        if (entry.expires <= now) BIN_CLIENTS.delete(client);
+    }
+    let entry = BIN_CLIENTS.get(key);
+    if (!entry) {
+        if (BIN_CLIENTS.size >= 2000) return false;
+        entry = { count: 0, expires: now + 60000 };
+        BIN_CLIENTS.set(key, entry);
+    }
+    return ++entry.count <= 12;
 }
 
 function readConfig() {
@@ -313,6 +359,7 @@ function getPublicConfig(config) {
         site_title: config.site_title || '',
         site_footer: config.site_footer || '',
         default_language: LANGS.has(config.default_language) ? config.default_language : 'en',
+        card_bin: { enabled: config.card_bin.enabled },
         ads: normalizeAds(config.ads),
         donation: normalizeDonation(config.donation)
     };
@@ -709,7 +756,7 @@ function sendJSON(req, res, statusCode, data) {
         'Content-Type': 'application/json; charset=utf-8',
         'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
         'Access-Control-Allow-Headers': 'Content-Type',
-        'Cache-Control': 'no-cache',
+        'Cache-Control': 'no-store',
         'X-Content-Type-Options': 'nosniff',
         'X-Frame-Options': 'SAMEORIGIN',
         'Referrer-Policy': 'no-referrer'
@@ -745,7 +792,8 @@ function readBody(req) {
                 return;
             }
             try {
-                resolve(body ? JSON.parse(body) : {});
+                const input = body ? JSON.parse(body) : {};
+                resolve(input && typeof input === 'object' && !Array.isArray(input) ? input : {});
             } catch (e) {
                 resolve({});
             }
@@ -778,12 +826,54 @@ async function handleAPI(req, res, parsedUrl) {
 
     // POST requests
     if (req.method === 'POST') {
-        const input = await readBody(req);
+        let input;
+        try { input = await readBody(req); }
+        catch (e) {
+            if (!req.destroyed && !res.destroyed) {
+                return sendJSON(req, res, 400, { status: 'error', code: 'invalid_request' });
+            }
+            return;
+        }
         if (input.__body_too_large) {
             return sendJSON(req, res, 413, {
                 status: 'error',
                 message: '请求内容过大'
             });
+        }
+
+        if (action === 'binlookup' || action === 'binsettings' || action === 'savebin') {
+            const config = readConfig();
+            const provider = input.provider || 'auto';
+            if ((action !== 'binlookup' || provider !== 'auto') && !isAuthenticated(req, input, config)) {
+                return sendJSON(req, res, 401, { status: 'error', code: 'unauthorized', message: '认证失败' });
+            }
+            if (action === 'binsettings') return sendJSON(req, res, 200, { status: 'ok', data: getBinAdminConfig(config) });
+            if (action === 'savebin') {
+                const data = input.data;
+                if (!data || typeof data !== 'object' || Array.isArray(data)) {
+                    return sendJSON(req, res, 400, { status: 'error', message: 'BIN 配置必须是 JSON 对象' });
+                }
+                const next = { ...config.card_bin };
+                for (const field of ['enabled', 'publishable_key', 'binlist_fallback']) {
+                    if (field in data) next[field] = data[field];
+                }
+                // An empty password input preserves the existing secret. Clearing is explicit.
+                if (data.clear_secret === true) next.secret_key = '';
+                else if (typeof data.secret_key === 'string' && data.secret_key.trim()) next.secret_key = data.secret_key.trim();
+                if ([next.publishable_key, next.secret_key].some(value => value && !/^[A-Za-z0-9_-]{1,200}$/.test(value))) {
+                    return sendJSON(req, res, 400, { status: 'error', message: 'API Key 格式不正确' });
+                }
+                config.card_bin = normalizeBinConfig(next);
+                if (!writeConfig(config)) return sendJSON(req, res, 500, { status: 'error', message: '配置保存失败' });
+                return sendJSON(req, res, 200, { status: 'ok', data: getBinAdminConfig(config) });
+            }
+            if (!canQueryBin(req)) return sendJSON(req, res, 429, { status: 'error', code: 'rate_limit' });
+            try {
+                const data = await binLookup.lookup(input.bin, config.card_bin, provider);
+                return sendJSON(req, res, 200, { status: 'ok', data });
+            } catch (error) {
+                return sendJSON(req, res, error.status || 502, { status: 'error', code: error.code || 'provider_unavailable' });
+            }
         }
 
         // ── Login: verify password ──
@@ -814,8 +904,8 @@ async function handleAPI(req, res, parsedUrl) {
         // ── Change password ──
         if (action === 'changepwd') {
             const config = readConfig();
-            const currentPassword = config.password || 'admin';
-            if (!isAuthenticated(input, config) && input.current_password !== currentPassword) {
+            const credentials = { ...input, password: input.password || input.current_password };
+            if (!isAuthenticated(req, credentials, config)) {
                 return sendJSON(req, res, 401, {
                     status: 'error',
                     message: '认证失败'
@@ -839,7 +929,7 @@ async function handleAPI(req, res, parsedUrl) {
         // ── Save config ──
         if (action === 'save') {
             const config = readConfig();
-            if (!isAuthenticated(input, config)) {
+            if (!isAuthenticated(req, input, config)) {
                 return sendJSON(req, res, 401, {
                     status: 'error',
                     message: '认证失败'
@@ -870,7 +960,7 @@ async function handleAPI(req, res, parsedUrl) {
         // ── Version status/check/update ──
         if (action === 'version' || action === 'checkversion' || action === 'updateversion') {
             const config = readConfig();
-            if (!isAuthenticated(input, config)) {
+            if (!isAuthenticated(req, input, config)) {
                 return sendJSON(req, res, 401, {
                     status: 'error',
                     message: '认证失败'
@@ -979,7 +1069,15 @@ const server = http.createServer(async (req, res) => {
 
     // API route: /api or /api.php (compatible with PHP version)
     if (pathname === '/api' || pathname === '/api.php') {
-        return handleAPI(req, res, parsedUrl);
+        try { return await handleAPI(req, res, parsedUrl); }
+        catch (e) {
+            // Contain one request's asynchronous failure without exposing internals.
+            if (!res.destroyed && !res.headersSent) {
+                return sendJSON(req, res, 500, { status: 'error', code: 'request_failed' });
+            }
+            if (!res.destroyed) res.destroy();
+            return;
+        }
     }
 
     // Static files
@@ -997,12 +1095,13 @@ const server = http.createServer(async (req, res) => {
 });
 
 server.listen(PORT, HOST, () => {
+    const listeningPort = server.address().port;
     console.log('');
     console.log('  ╔══════════════════════════════════════════╗');
     console.log('  ║       ⚡ IdentityGen Server             ║');
     console.log('  ╠══════════════════════════════════════════╣');
-    console.log(`  ║  🌐 http://${HOST}:${PORT}               ║`);
-    console.log(`  ║  🔧 Admin: http://${HOST}:${PORT}/admin.html ║`);
+    console.log(`  ║  🌐 http://${HOST}:${listeningPort}               ║`);
+    console.log(`  ║  🔧 Admin: http://${HOST}:${listeningPort}/admin.html ║`);
     console.log('  ║  📋 Press Ctrl+C to stop                ║');
     console.log('  ╚══════════════════════════════════════════╝');
     console.log('');

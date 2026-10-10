@@ -997,6 +997,42 @@
             </div>
         </div>
 
+        <div class="section-card">
+            <div class="section-header"><span class="section-icon">💳</span><span class="section-title">Card BIN/IIN 查询</span></div>
+            <p class="section-desc">前台右上角查询发卡行、卡组织、类型及国家。HandyAPI 为主接口，失败时使用 Binlist。仅支持 6 位 BIN 或 8 位 IIN，禁止输入完整卡号。<br>
+                Secret Key 仅保存在服务端，不会回传浏览器；留空保留原值。Publishable Key 可用作服务端备用凭据，建议在 HandyAPI 后台限制域名。Binlist 免费配额约 5 次/小时；8 位输入回退时仅匹配前 6 位，前台明确提示精度。测试使用已保存的配置，并计入配额。</p>
+            <div class="field-row">
+                <label><input type="checkbox" id="bin-enabled" checked> 启用前台 BIN 查询</label>
+                <label><input type="checkbox" id="bin-fallback" checked> 启用 Binlist 回退</label>
+            </div>
+            <div class="field">
+                <label class="field-label" for="bin-publishable-key">HandyAPI Publishable Key</label>
+                <input class="field-input mono" type="text" id="bin-publishable-key" placeholder="PUB-…" autocomplete="off">
+            </div>
+            <div class="field">
+                <label class="field-label" for="bin-secret-key">HandyAPI Secret Key（仅服务端保存）</label>
+                <input class="field-input mono" type="password" id="bin-secret-key" placeholder="留空保留原 Key" autocomplete="new-password">
+                <p class="section-desc" id="bin-secret-state">尚未加载配置</p>
+            </div>
+            <div class="field-row">
+                <button class="btn-save" id="bin-save-btn" onclick="saveBinSettings()">保存 BIN 配置</button>
+                <button class="btn-danger" id="bin-clear-btn" onclick="saveBinSettings(true)">清除 Secret Key</button>
+            </div>
+            <div class="field">
+                <label class="field-label" for="bin-test-input">测试 BIN / IIN</label>
+                <input class="field-input mono" type="text" inputmode="numeric" id="bin-test-input" value="535316" autocomplete="off">
+            </div>
+            <div class="field-row">
+                <button class="btn-save" id="bin-test-handyapi" onclick="testBinAPI('handyapi')">测试 HandyAPI</button>
+                <button class="btn-save" id="bin-test-binlist" onclick="testBinAPI('binlist')">测试 Binlist</button>
+                <button class="btn-save" id="bin-test-auto" onclick="testBinAPI('auto')">测试自动回退</button>
+            </div>
+            <div id="bin-settings-status"></div>
+            <div id="bin-handyapi-status"></div>
+            <div id="bin-binlist-status"></div>
+            <div id="bin-auto-status"></div>
+        </div>
+
         <!-- 4. Site Settings -->
         <div class="section-card">
             <div class="section-header"><span class="section-icon">🎨</span><span class="section-title">网站定制</span>
@@ -1309,6 +1345,7 @@
                 document.getElementById('login-screen').classList.add('hidden');
                 document.getElementById('admin-panel').classList.remove('hidden');
                 loadConfigUI();
+                loadBinSettings();
                 loadVersion();
             } else {
                 errEl.textContent = '❌ ' + (result.message || '登录失败，请重试');
@@ -1447,6 +1484,67 @@
             } catch (e) {
                 setStatus(el, 'warn', '❌ FakerAPI 连接失败，将使用备用或本地数据');
             }
+        }
+
+        let binSettingsLoaded = false;
+
+        function showBinSettings(data) {
+            const config = data.card_bin;
+            document.getElementById('bin-enabled').checked = config.enabled;
+            document.getElementById('bin-fallback').checked = config.binlist_fallback;
+            document.getElementById('bin-publishable-key').value = config.publishable_key || '';
+            document.getElementById('bin-secret-key').value = '';
+            document.getElementById('bin-secret-state').textContent = config.secret_configured
+                ? 'Secret Key 已配置（不会回显）。留空保存将保留原值。' : '尚未配置 Secret Key。';
+            binSettingsLoaded = true;
+        }
+
+        async function loadBinSettings() {
+            const result = await apiPost('binsettings', authBody());
+            if (result.status === 'ok') showBinSettings(result.data);
+            else setStatus(document.getElementById('bin-settings-status'), 'warn', result.message || 'BIN 配置加载失败');
+        }
+
+        async function saveBinSettings(clearSecret = false) {
+            if (!binSettingsLoaded) return toast('请先成功加载 BIN 配置', 'error');
+            if (clearSecret && !confirm('确定清除 Secret Key？Publishable Key 会保留，若不需要请同时清空。')) return;
+            const buttons = ['bin-save-btn', 'bin-clear-btn'].map(id => document.getElementById(id));
+            buttons.forEach(button => { button.disabled = true; });
+            try {
+                const result = await apiPost('savebin', authBody({ data: {
+                    enabled: document.getElementById('bin-enabled').checked,
+                    binlist_fallback: document.getElementById('bin-fallback').checked,
+                    publishable_key: document.getElementById('bin-publishable-key').value.trim(),
+                    secret_key: clearSecret ? '' : document.getElementById('bin-secret-key').value.trim(),
+                    clear_secret: clearSecret
+                } }));
+                if (result.status === 'ok') showBinSettings(result.data);
+                setStatus(document.getElementById('bin-settings-status'), result.status === 'ok' ? 'ok' : 'warn',
+                    result.status === 'ok' ? 'BIN 配置已保存，刷新前台后生效。' : result.message || '保存失败');
+            } finally { buttons.forEach(button => { button.disabled = false; }); }
+        }
+
+        async function testBinAPI(provider) {
+            const el = document.getElementById(`bin-${provider}-status`);
+            const button = document.getElementById(`bin-test-${provider}`);
+            const bin = document.getElementById('bin-test-input').value.trim();
+            if (!/^(?:\d{6}|\d{8})$/.test(bin)) return setStatus(el, 'warn', '仅允许恰好 6 位或 8 位数字，禁止完整卡号。');
+            button.disabled = true;
+            setStatus(el, 'info', '正在测试已保存的配置…');
+            const errors = {
+                not_found: '未找到该 BIN', disabled: 'BIN 查询已关闭', not_configured: 'HandyAPI Key 未配置',
+                provider_auth: 'API Key 被拒绝', provider_rate_limit: '上游或本地备用配额已用尽，请稍后重试',
+                rate_limit: '本地限流，请稍后重试', busy: '服务繁忙', fallback_disabled: 'Binlist 回退已关闭',
+                provider_timeout: '上游请求超时', invalid_response: '上游数据格式不符合文档', provider_unavailable: '上游暂不可用'
+            };
+            try {
+                const result = await apiPost('binlookup', authBody({ bin, provider }));
+                if (result.status === 'ok') {
+                    const data = result.data;
+                    const approximate = data.precision < bin.length ? '（仅前 6 位近似匹配）' : '';
+                    setStatus(el, 'ok', `${data.source} ${data.precision} 位${approximate}：${data.scheme || '未知卡组织'} / ${data.issuer || '未知发卡行'} / ${data.country.name || '未知国家'}${data.cached ? ' · 缓存' : ''}${data.fallback_reason ? ' · 主接口失败已回退' : ''}`);
+                } else setStatus(el, 'warn', errors[result.code] || result.message || '接口测试失败');
+            } finally { button.disabled = false; }
         }
 
         // ── Site Settings ──

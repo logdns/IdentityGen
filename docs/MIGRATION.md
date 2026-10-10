@@ -2,6 +2,12 @@
 
 本文档用于从没有后台版本更新功能的旧版本迁移到新版。
 
+## 迁移到 v1.2.17
+
+v1.2.17 增加右上角 Card BIN/IIN 查询和后台配置/测试，HandyAPI 为主源、Binlist 为备用源。文件上传升级必须新增 `bin-lookup.js` 与 `bin-ui.js`，并重启 Node.js 服务。现有 `config.json` 保留不覆盖，新 `card_bin` 配置会自动补齐；请在后台保存 HandyAPI Key，真实 Key 不包含在发布文件中。Secret Key 留空保留，清除使用专用按钮。所有兼容密码验证共享登录尝试限制；客户端 POST 中断、上游错误响应采用请求级异常处理，敏感 API 禁止缓存。
+
+前台只接受 6 位 BIN 或 8 位 IIN，禁止完整卡号。Binlist 免费配额低且不保证 8 位精度，回退仅查询前 6 位并提示近似匹配。服务端内存缓存/配额在重启后重置，多实例请配置共享限流；旧 PHP 后端不支持此新功能，应切换本仓库的 Node.js 服务。详见 README 的 Card BIN/IIN 配置与接口说明。
+
 ## 迁移到 v1.2.16
 
 v1.2.16 从前台身份卡、复制内容和接口请求字段中移除 Email 与 Website，并重新整理响应式卡片布局：桌面端使用三列信息层级，完整地址占满整行；平板端使用两列；手机端使用单列。FakerAPI 仍作为主要姓名与个人信息来源，RandomUser 仍负责随机地址和备用身份字段。
@@ -394,6 +400,8 @@ index.html
 admin.html
 style.css
 app.js
+bin-ui.js
+bin-lookup.js
 data.js
 config.example.json
 ```
@@ -559,10 +567,10 @@ git stash show -p stash@{0}
 新版本发布时，从已审核提交创建 tag，并同步推送 `main` 与 tag：
 
 ```bash
-test "$(cat VERSION)" = "1.2.16"
-git tag -a v1.2.16 -m "Release v1.2.16"
+test "$(cat VERSION)" = "1.2.17"
+git tag -a v1.2.17 -m "Release v1.2.17"
 git push origin main
-git push origin v1.2.16
+git push origin v1.2.17
 ```
 
 后台显示的版本号来自仓库根目录的 `VERSION` 文件。发布新版本时，请先更新 `VERSION` 文件，再提交和打 tag。
@@ -570,9 +578,9 @@ git push origin v1.2.16
 发布包必须从不可变 tag 构建，不能从未提交的工作区打包；同时生成 SHA-256 清单，并在上传后核对远端制品：
 
 ```bash
-git archive --format=tar.gz --prefix=IdentityGen-v1.2.16/ -o IdentityGen-v1.2.16.tar.gz v1.2.16
-git archive --format=zip --prefix=IdentityGen-v1.2.16/ -o IdentityGen-v1.2.16.zip v1.2.16
-shasum -a 256 IdentityGen-v1.2.16.tar.gz IdentityGen-v1.2.16.zip > SHA256SUMS
+git archive --format=tar.gz --prefix=IdentityGen-v1.2.17/ -o IdentityGen-v1.2.17.tar.gz v1.2.17
+git archive --format=zip --prefix=IdentityGen-v1.2.17/ -o IdentityGen-v1.2.17.zip v1.2.17
+shasum -a 256 IdentityGen-v1.2.17.tar.gz IdentityGen-v1.2.17.zip > SHA256SUMS
 ```
 
 版本 tag 应启用 GitHub tag ruleset 保护；Release 创建和制品替换权限只授予发布维护者。条件允许时使用签名 tag 或 provenance attestation，并开启 immutable releases。

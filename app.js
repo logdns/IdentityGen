@@ -200,6 +200,8 @@ async function loadServerConfig() {
             const json = await resp.json();
             if (json.status === 'ok' && json.data) {
                 serverConfig = json.data;
+                const binButton = document.getElementById('bin-open');
+                if (binButton) binButton.hidden = Boolean(serverConfig.card_bin && serverConfig.card_bin.enabled === false);
             } else {
                 continue;
             }

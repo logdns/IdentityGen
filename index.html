@@ -17,7 +17,7 @@
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@fontsource/jetbrains-mono@5/400.min.css">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@fontsource/jetbrains-mono@5/500.min.css">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@fontsource/jetbrains-mono@5/600.min.css">
-    <link rel="stylesheet" href="style.css?v=1.2.16">
+    <link rel="stylesheet" href="style.css?v=1.2.17">
 </head>
 
 <body>
@@ -34,6 +34,7 @@
             <span class="logo-text" id="site-logo">IdentityGen</span>
         </a>
         <div class="header-actions">
+            <button class="bin-nav-btn" id="bin-open" type="button" aria-haspopup="dialog" aria-controls="bin-dialog">Card BIN/IIN</button>
             <div class="country-switcher">
                 <button class="country-btn active" data-country="us" id="btn-us">
                     <span class="country-flag">🇺🇸</span>
@@ -231,6 +232,28 @@
         </section>
     </main>
 
+    <dialog class="bin-dialog" id="bin-dialog" aria-labelledby="bin-title" aria-describedby="bin-intro">
+        <div class="bin-dialog-head">
+            <div><span class="bin-eyebrow">CARD INTELLIGENCE</span><h2 id="bin-title">Card BIN/IIN</h2></div>
+            <button class="bin-close" id="bin-close" type="button" aria-label="Close">×</button>
+        </div>
+        <p class="bin-intro" id="bin-intro" data-bin-i18n="intro">Look up an issuing bank using only a 6- or 8-digit BIN/IIN. Never enter a full card number.</p>
+        <form class="bin-form" id="bin-form" novalidate>
+            <label for="bin-input" data-bin-i18n="input">BIN / IIN</label>
+            <div class="bin-input-row">
+                <input id="bin-input" type="text" inputmode="numeric" autocomplete="off" spellcheck="false" placeholder="535316" aria-describedby="bin-status">
+                <button class="bin-submit" id="bin-submit" type="submit" data-bin-i18n="lookup">Look up</button>
+            </div>
+        </form>
+        <p class="bin-status" id="bin-status" role="status" aria-live="polite"></p>
+        <section class="bin-results" id="bin-results" hidden>
+            <div class="bin-result-heading"><strong id="bin-result-prefix"></strong><span id="bin-source"></span></div>
+            <p class="bin-precision" id="bin-precision"></p>
+            <dl class="bin-result-grid" id="bin-result-grid"></dl>
+        </section>
+        <p class="bin-disclaimer" data-bin-i18n="disclaimer">Reference data only. A BIN lookup does not verify card validity, balance or ownership. Unknown fields are not inferred.</p>
+    </dialog>
+
     <!-- Toast -->
     <div class="toast-container">
         <div class="toast" id="toast">
@@ -247,8 +270,9 @@
         </div>
     </footer>
 
-    <script src="data.js?v=1.2.16"></script>
-    <script src="app.js?v=1.2.16"></script>
+    <script src="data.js?v=1.2.17"></script>
+    <script src="app.js?v=1.2.17"></script>
+    <script src="bin-ui.js?v=1.2.17"></script>
 </body>
 
 </html>
