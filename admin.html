@@ -885,6 +885,34 @@
         .status { border-radius:4px; }
         @media (max-width:760px) { .admin-wrap { padding:16px 16px 48px; } .admin-topbar { margin:0 -16px 16px; padding:14px 16px; } }
 
+        .admin-wrap { --admin-header-height:72px; --admin-scroll-offset:88px; max-width:1320px; }
+        .admin-layout { display:grid; grid-template-columns:208px minmax(0,1fr); gap:24px; align-items:start; }
+        .admin-content { min-width:0; }
+        .admin-nav { position:sticky; top:calc(var(--admin-header-height) + 16px); padding:12px; border:1px solid var(--border); border-radius:6px; background:var(--surface); }
+        .admin-nav-title { margin:4px 10px 12px; color:var(--text-muted); font-size:12px; font-weight:600; letter-spacing:.08em; }
+        .admin-nav-links { display:flex; flex-direction:column; gap:4px; max-height:calc(100dvh - var(--admin-header-height) - 96px); overflow-y:auto; scrollbar-width:thin; }
+        .admin-nav-link { display:flex; align-items:center; gap:10px; padding:11px 10px; border-radius:4px; color:var(--text-dim); font-size:13px; font-weight:500; text-decoration:none; white-space:nowrap; }
+        .admin-nav-link:hover { color:var(--accent); background:var(--surface-2); text-decoration:none; }
+        .admin-nav-link[aria-current="location"] { color:var(--accent); background:var(--accent-soft); font-weight:600; }
+        .admin-nav-icon { width:20px; text-align:center; flex-shrink:0; font-size:16px; }
+        .admin-nav-link:focus-visible { outline:2px solid var(--accent); outline-offset:2px; }
+        .admin-content .section-card { scroll-margin-top:var(--admin-scroll-offset); }
+        .admin-content .section-card:focus-visible { outline:2px solid var(--accent); outline-offset:2px; }
+        @media (max-width:1000px) {
+            .admin-layout { grid-template-columns:minmax(0,1fr); gap:16px; }
+            .admin-nav { top:var(--admin-header-height); z-index:9; padding:8px; box-shadow:0 2px 8px rgba(29,33,41,.06); }
+            .admin-nav-title { display:none; }
+            .admin-nav-links { flex-direction:row; max-height:none; overflow-x:auto; overflow-y:hidden; padding:3px; gap:4px; }
+            .admin-nav-link { flex-shrink:0; padding:10px 12px; gap:6px; }
+        }
+        @media (max-width:640px) {
+            .admin-topbar { flex-direction:row; align-items:center; gap:8px; }
+            .admin-topbar h1 { font-size:17px; }
+            .admin-topbar .back-btn { padding:8px 10px; font-size:12px; }
+            .admin-layout { gap:12px; }
+        }
+        @media (prefers-reduced-motion:reduce) { html { scroll-behavior:auto; } }
+
     </style>
 </head>
 
@@ -922,11 +950,27 @@
             </div>
         </div>
 
+        <div class="admin-layout">
+        <nav class="admin-nav" aria-label="后台功能导航">
+            <p class="admin-nav-title">功能导航</p>
+            <div class="admin-nav-links">
+                <a class="admin-nav-link" href="#settings-password" aria-current="location"><span class="admin-nav-icon" aria-hidden="true">🔑</span>管理密码</a>
+                <a class="admin-nav-link" href="#settings-map"><span class="admin-nav-icon" aria-hidden="true">🗺️</span>地图服务</a>
+                <a class="admin-nav-link" href="#settings-identity"><span class="admin-nav-icon" aria-hidden="true">🔗</span>身份与地址 API</a>
+                <a class="admin-nav-link" href="#settings-bin"><span class="admin-nav-icon" aria-hidden="true">🏦</span>Card BIN/IIN</a>
+                <a class="admin-nav-link" href="#settings-site"><span class="admin-nav-icon" aria-hidden="true">🎨</span>网站定制</a>
+                <a class="admin-nav-link" href="#settings-language"><span class="admin-nav-icon" aria-hidden="true">🌐</span>前台语言</a>
+                <a class="admin-nav-link" href="#settings-ads"><span class="admin-nav-icon" aria-hidden="true">📣</span>广告位管理</a>
+                <a class="admin-nav-link" href="#settings-donation"><span class="admin-nav-icon" aria-hidden="true">₿</span>加密币捐赠</a>
+                <a class="admin-nav-link" href="#settings-version"><span class="admin-nav-icon" aria-hidden="true">⬆️</span>系统在线更新</a>
+            </div>
+        </nav>
+        <div class="admin-content">
         <!-- 1. Password -->
-        <div class="section-card">
+        <div class="section-card" id="settings-password" tabindex="-1" aria-label="管理密码">
             <div class="section-header"><span class="section-icon">🔑</span><span class="section-title">管理密码</span>
             </div>
-            <p class="section-desc">修改后台登录密码。默认密码为 <code>admin</code></p>
+            <p class="section-desc">修改后台登录密码。首次启动生成的随机密码保存在服务器本机配置中，请使用独立的强密码。</p>
             <div class="field">
                 <div class="field-label">新密码</div>
                 <div class="field-row">
@@ -937,7 +981,7 @@
         </div>
 
         <!-- 2. Map Provider -->
-        <div class="section-card">
+        <div class="section-card" id="settings-map" tabindex="-1" aria-label="地图服务">
             <div class="section-header"><span class="section-icon">🗺️</span><span class="section-title">地图服务</span>
             </div>
             <p class="section-desc">
@@ -981,7 +1025,7 @@
         </div>
 
         <!-- 3. Identity and address APIs -->
-        <div class="section-card">
+        <div class="section-card" id="settings-identity" tabindex="-1" aria-label="身份与地址数据 API">
             <div class="section-header"><span class="section-icon">🔗</span><span class="section-title">身份与地址数据 API</span></div>
             <p class="section-desc">
                 姓名和身份数据优先来自 <a href="https://fakerapi.it" target="_blank" rel="noopener noreferrer">FakerAPI</a>；随机地区地址来自 <a href="https://randomuser.me/documentation#nationalities" target="_blank" rel="noopener noreferrer">RandomUser</a>，并使用 <code>nat=us</code> / <code>nat=gb</code> / <code>nat=de</code> / <code>nat=tr</code> 限定国籍。两个接口均免费、无需 API Key。<br>
@@ -997,7 +1041,7 @@
             </div>
         </div>
 
-        <div class="section-card">
+        <div class="section-card" id="settings-bin" tabindex="-1" aria-label="Card BIN/IIN 查询">
             <div class="section-header"><span class="section-icon">💳</span><span class="section-title">Card BIN/IIN 查询</span></div>
             <p class="section-desc">前台右上角查询发卡行、卡组织、类型及国家。HandyAPI 为主接口，失败时使用 Binlist。仅支持 6 位 BIN 或 8 位 IIN，禁止输入完整卡号。<br>
                 Secret Key 仅保存在服务端，不会回传浏览器；留空保留原值。Publishable Key 可用作服务端备用凭据，建议在 HandyAPI 后台限制域名。Binlist 免费配额约 5 次/小时；8 位输入回退时仅匹配前 6 位，前台明确提示精度。测试使用已保存的配置，并计入配额。</p>
@@ -1034,7 +1078,7 @@
         </div>
 
         <!-- 4. Site Settings -->
-        <div class="section-card">
+        <div class="section-card" id="settings-site" tabindex="-1" aria-label="网站定制">
             <div class="section-header"><span class="section-icon">🎨</span><span class="section-title">网站定制</span>
             </div>
             <p class="section-desc">自定义网站品牌信息</p>
@@ -1056,7 +1100,7 @@
         </div>
 
         <!-- 5. Frontend Settings -->
-        <div class="section-card">
+        <div class="section-card" id="settings-language" tabindex="-1" aria-label="前台语言">
             <div class="section-header"><span class="section-icon">🌐</span><span class="section-title">前台语言</span>
             </div>
             <p class="section-desc">设置前台默认语言。用户仍可在前台右上角切换语言。</p>
@@ -1075,7 +1119,7 @@
         </div>
 
         <!-- 6. Ads -->
-        <div class="section-card">
+        <div class="section-card" id="settings-ads" tabindex="-1" aria-label="广告位管理">
             <div class="section-header"><span class="section-icon">📣</span><span class="section-title">广告位管理</span>
             </div>
             <p class="section-desc">预留 Head、前台顶部、信息区下方、地图下方四个广告位。Head 广告位会直接注入首页 <code>&lt;head&gt;</code>，适合 Google AdSense 站点验证和自动广告代码。</p>
@@ -1139,7 +1183,7 @@
         </div>
 
         <!-- 7. Donations -->
-        <div class="section-card">
+        <div class="section-card" id="settings-donation" tabindex="-1" aria-label="加密币捐赠">
             <div class="section-header"><span class="section-icon">₿</span><span class="section-title">加密币捐赠</span>
             </div>
             <p class="section-desc">在前台底部显示加密币捐赠地址。最多 8 条，地址会以纯文本显示并支持一键复制。</p>
@@ -1176,7 +1220,7 @@
         </div>
 
         <!-- 8. Version -->
-        <div class="section-card">
+        <div class="section-card" id="settings-version" tabindex="-1" aria-label="系统在线更新">
             <div class="section-header"><span class="section-icon">⬆️</span><span class="section-title">系统在线更新</span>
             </div>
             <p class="section-desc">检查 Git 远端版本并在线拉取更新。更新成功后服务会自动重启，以加载新版 server.js。</p>
@@ -1214,6 +1258,8 @@
                 <button class="btn-save" id="update-version-btn" onclick="updateVersion()" disabled>开始更新</button>
             </div>
             <pre class="version-log" id="version-log">等待检查更新...</pre>
+        </div>
+        </div>
         </div>
     </div>
 
@@ -1347,12 +1393,107 @@
                 loadConfigUI();
                 loadBinSettings();
                 loadVersion();
+                initAdminNavigation();
             } else {
                 errEl.textContent = '❌ ' + (result.message || '登录失败，请重试');
                 errEl.style.display = 'block';
                 document.getElementById('pwd-input').value = '';
                 document.getElementById('pwd-input').focus();
             }
+        }
+
+        function initAdminNavigation() {
+            const panel = document.getElementById('admin-panel');
+            if (panel.dataset.navigationReady) return;
+            panel.dataset.navigationReady = 'true';
+            const nav = panel.querySelector('.admin-nav');
+            const rail = nav.querySelector('.admin-nav-links');
+            const links = Array.from(nav.querySelectorAll('.admin-nav-link'));
+            const sections = links.map(link => document.getElementById(link.hash.slice(1)));
+            const reducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)');
+            let offset = 88;
+            let activeId = '';
+            let pendingFrame = false;
+
+            function markActive(section) {
+                if (section.id === activeId) return;
+                activeId = section.id;
+                links.forEach(link => {
+                    if (link.hash === '#' + activeId) {
+                        link.setAttribute('aria-current', 'location');
+                        // Scroll only the mobile navigation rail, never the page.
+                        if (rail.scrollWidth > rail.clientWidth) {
+                            const item = link.getBoundingClientRect();
+                            const bounds = rail.getBoundingClientRect();
+                            if (item.left < bounds.left || item.right > bounds.right) {
+                                rail.scrollTo({ left:rail.scrollLeft + item.left - bounds.left - (bounds.width - item.width) / 2, behavior:'auto' });
+                            }
+                        } else if (rail.scrollHeight > rail.clientHeight) {
+                            const item = link.getBoundingClientRect();
+                            const bounds = rail.getBoundingClientRect();
+                            if (item.top < bounds.top || item.bottom > bounds.bottom) {
+                                rail.scrollTo({ top:rail.scrollTop + item.top - bounds.top - (bounds.height - item.height) / 2, behavior:'auto' });
+                            }
+                        }
+                    } else link.removeAttribute('aria-current');
+                });
+            }
+
+            function updatePosition() {
+                pendingFrame = false;
+                let current = sections[0];
+                for (const section of sections) {
+                    if (section.getBoundingClientRect().top <= offset + 4) current = section;
+                }
+                if (window.scrollY > 0 && window.scrollY + window.innerHeight >= document.documentElement.scrollHeight - 2) {
+                    current = sections[sections.length - 1];
+                }
+                markActive(current);
+            }
+
+            function schedulePosition() {
+                if (pendingFrame) return;
+                pendingFrame = true;
+                requestAnimationFrame(updatePosition);
+            }
+
+            function measureNavigation() {
+                const headerHeight = panel.querySelector('.admin-topbar').getBoundingClientRect().height;
+                const mobile = window.matchMedia('(max-width:1000px)').matches;
+                offset = headerHeight + (mobile ? nav.getBoundingClientRect().height : 0) + 16;
+                panel.style.setProperty('--admin-header-height', headerHeight + 'px');
+                panel.style.setProperty('--admin-scroll-offset', offset + 'px');
+                schedulePosition();
+            }
+
+            function jumpTo(section, smooth) {
+                section.focus({ preventScroll:true });
+                window.scrollTo({ top:Math.max(0, window.scrollY + section.getBoundingClientRect().top - offset), behavior:smooth && !reducedMotion.matches ? 'smooth' : 'instant' });
+                markActive(section);
+            }
+
+            links.forEach((link, index) => link.addEventListener('click', event => {
+                if (event.button !== 0 || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return;
+                event.preventDefault();
+                history.replaceState(null, '', link.hash);
+                jumpTo(sections[index], true);
+            }));
+            window.addEventListener('scroll', schedulePosition, { passive:true });
+            window.addEventListener('resize', measureNavigation);
+            window.addEventListener('hashchange', () => {
+                const target = sections.find(section => '#' + section.id === window.location.hash);
+                if (target) jumpTo(target, false);
+            });
+            // Header and navigation heights can change with fonts, zoom or wrapping.
+            if (typeof ResizeObserver !== 'undefined') {
+                const observer = new ResizeObserver(measureNavigation);
+                observer.observe(panel.querySelector('.admin-topbar'));
+                observer.observe(nav);
+                observer.observe(panel.querySelector('.admin-content'));
+            }
+            measureNavigation();
+            const initial = sections.find(section => '#' + section.id === window.location.hash);
+            if (initial) jumpTo(initial, false);
         }
 
         // ── Save Password ──
