@@ -14,19 +14,27 @@
     "ads": {
         "head": {
             "enabled": false,
-            "html": ""
+            "html": "",
+            "format": "auto",
+            "mode": "page"
         },
         "top": {
             "enabled": false,
-            "html": ""
+            "html": "",
+            "format": "auto",
+            "mode": "auto"
         },
         "inline": {
             "enabled": false,
-            "html": ""
+            "html": "",
+            "format": "auto",
+            "mode": "auto"
         },
         "footer": {
             "enabled": false,
-            "html": ""
+            "html": "",
+            "format": "auto",
+            "mode": "auto"
         }
     },
     "donation": {

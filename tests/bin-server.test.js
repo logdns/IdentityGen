@@ -11,7 +11,7 @@ const net = require('node:net');
 test('HTTP integration: authentication, secret protection, fallback, save/clear and limits', async t => {
     // Run a disposable copy with fixture config and mocked HTTPS, never the user's runtime config.
     const directory = fs.mkdtempSync(path.join(os.tmpdir(), 'identitygen-bin-test-'));
-    for (const file of ['server.js', 'bin-lookup.js', 'index.html', 'bin-ui.js', 'style.css', 'app.js', 'data.js', 'VERSION']) {
+    for (const file of ['server.js', 'bin-lookup.js', 'ad-code.js', 'index.html', 'bin-ui.js', 'style.css', 'app.js', 'data.js', 'VERSION']) {
         fs.copyFileSync(path.join(__dirname, '..', file), path.join(directory, file));
     }
     const password = 'test-only-admin-password';

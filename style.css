@@ -761,7 +761,7 @@ body.uk-mode.dark-mode .card-highlight {
 
 /* ─── Ads ─── */
 .ad-slot {
-  margin: 24px 0;
+  margin: 24px auto;
   padding: 0;
   display: flex;
   align-items: center;
@@ -779,6 +779,10 @@ body.uk-mode.dark-mode .card-highlight {
 .ad-slot:empty {
   display: none;
 }
+
+.ad-slot[hidden] { display: none; }
+.ad-content-frame { display: block; width: 100%; min-height: 48px; border: 0; }
+.ad-diagnostic { margin: -12px 0 20px; color: var(--text-dim); font-size: 12px; overflow-wrap: anywhere; }
 
 .ad-slot iframe,
 .ad-slot img,

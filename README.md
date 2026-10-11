@@ -88,6 +88,7 @@ identitygen/
 ├── app.js               # 主逻辑 — 生成、i18n、地图、粒子动画
 ├── bin-ui.js            # BIN 查询弹窗 — 四语言、键盘导航、结果与错误提示
 ├── bin-lookup.js        # 服务端 BIN 查询 — 双源回退、缓存、上游配额和超时
+├── ad-code.js           # 前后台共用广告代码编码、类型与执行方式
 ├── tests/               # Node.js 零依赖回归测试
 ├── data.js              # 静态数据 — US/UK/DE/TR 地区、城市、街道、姓名等
 └── README.md            # 项目文档（本文件）
@@ -147,7 +148,17 @@ PORT=8080 node server.js
 | 加密币捐赠 | 前台底部捐赠地址列表 | 关闭 |
 | 系统版本 | 检查远端版本、执行安全更新 | 当前 Git 版本 |
 
-广告位代码会以兼容格式保存，后台会自动还原显示原始 HTML/JS。Head / AdSense 广告位会由服务端直接注入首页 `<head>`，适合 Google AdSense 站点验证和自动广告代码；其他前台广告位会在广告容器中按顺序加载，并兼容常见 `document.write` 广告脚本。页脚仍只支持有限 HTML，系统会过滤脚本、事件属性和不安全链接；捐赠地址以纯文本显示并支持复制。
+广告位代码以兼容格式保存，后台自动还原原始代码。支持「自动识别」「HTML / script 标签」「纯 JavaScript」「脚本 URL」；URL 必须使用 HTTP(S)，生产环境使用 HTTPS。每个广告位保存后的编码最长 30,000 字符，过长会明确拒绝而不是截断；可改用平台的外链脚本。
+
+Head / AdSense 代码由 Node.js 服务端注入首页 `<head>`，适合平台加载器、站点验证和自动广告。仅保存 Head 加载器并不意味着会显示横幅；手动广告还需按平台文档在对应广告位放置广告容器与初始化代码。若 Nginx/PHP 直接返回静态 `index.html` 而绕过 Node，Head 不会注入。
+
+正文广告默认自动选择执行方式：普通 JS 在独立广告文档中执行，原生解析 HTML 和 `document.write`，每个广告位拥有独立变量，经典外链脚本按顺序加载；慢加载不会再因短时空白而被删除。AdSense / Google Publisher Tag 使用页面内模式，依赖首页 DOM/全局平台库的其他广告也可手动选择「页面内」。不改变配置时，切换国家或语言不会重新执行广告。独立文档只隔离布局和变量，**不是安全沙箱**；只有受信管理员可设置广告，请只使用可信平台脚本。
+
+点击后台「检查已保存配置」可核对前台配置接口和 Head 注入，不会执行代码或访问广告平台；点击「查看前台诊断」或访问 `index.html?ad_debug=1` 可查看三个正文广告位的加载、内容、空白或错误状态。诊断不等于平台已填充：域名审核、无广告库存、地区限制、HTTPS 混合内容、广告拦截和浏览器隐私策略均可能导致空白，需结合 Console/Network 和平台后台检查。正常前台不会显示诊断文字。
+
+页脚品牌文案仍只支持有限 HTML并过滤脚本，与「地图下方广告位」是不同设置；捐赠地址以纯文本显示并支持复制。
+
+零依赖回归：`node --test tests/*.test.js`。可选的完整广告浏览器回归为 `node tests/ad-browser.cjs`，需要本机已有 Playwright 和 Chrome；非默认安装可通过 `PLAYWRIGHT_MODULE` 指定模块路径、`CHROME_PATH` 指定浏览器路径。测试运行临时 Node 服务与模拟广告脚本，阻止浏览器外部请求，不读取生产配置、不消耗广告平台配额。
 
 ### 获取 Google Maps API Key
 
@@ -230,6 +241,7 @@ style.css
 app.js
 bin-ui.js
 bin-lookup.js
+ad-code.js
 data.js
 config.example.json
 ```

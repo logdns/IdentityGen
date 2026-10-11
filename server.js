@@ -20,6 +20,7 @@ const { execFile, spawn } = require('child_process');
 const crypto = require('crypto');
 const net = require('net');
 const { createBinLookup } = require('./bin-lookup');
+const AdCode = require('./ad-code');
 const { promisify } = require('util');
 
 const execFileAsync = promisify(execFile);
@@ -83,7 +84,6 @@ const SESSION_TTL = 1000 * 60 * 60 * 6;
 const LOGIN_ATTEMPTS = new Map();
 const LOGIN_WINDOW_MS = 15 * 60 * 1000;
 const LOGIN_MAX_ATTEMPTS = 10;
-const AD_STORAGE_PREFIX = 'identitygen-ad:v1:';
 
 function createSession() {
     const token = crypto.randomBytes(24).toString('hex');
@@ -195,7 +195,9 @@ function normalizeAdSlot(slot) {
     const input = slot && typeof slot === 'object' ? slot : {};
     return {
         enabled: toBoolean(input.enabled),
-        html: limitString(input.html || '', 30000)
+        html: limitString(input.html || '', AdCode.MAX_LENGTH),
+        format: AdCode.FORMATS.includes(input.format) ? input.format : 'auto',
+        mode: AdCode.MODES.includes(input.mode) ? input.mode : 'auto'
     };
 }
 
@@ -207,22 +209,12 @@ function normalizeAds(ads) {
     }, {});
 }
 
-function decodeAdHtml(value) {
-    const raw = String(value || '');
-    if (!raw.startsWith(AD_STORAGE_PREFIX)) return raw;
-
-    try {
-        return Buffer.from(raw.slice(AD_STORAGE_PREFIX.length), 'base64').toString('utf8');
-    } catch (e) {
-        return '';
-    }
-}
-
 function getHeadAdHtml() {
     const config = readConfig();
     const headAd = config.ads && config.ads.head ? config.ads.head : {};
     if (!headAd.enabled) return '';
-    return decodeAdHtml(headAd.html).trim();
+    try { return AdCode.normalize(headAd.html, headAd.format); }
+    catch (_) { return ''; }
 }
 
 function injectHeadAd(html) {
@@ -937,6 +929,25 @@ async function handleAPI(req, res, parsedUrl) {
             }
             const allowed = ['map_provider', 'google_maps_key', 'site_title', 'site_footer', 'default_language', 'ads', 'donation'];
             const data = input.data || {};
+            if (data.ads !== undefined) {
+                if (!data.ads || typeof data.ads !== 'object' || Array.isArray(data.ads)) {
+                    return sendJSON(req, res, 400, { status: 'error', message: '广告配置格式错误' });
+                }
+                for (const slot of AD_SLOTS) {
+                    const ad = data.ads[slot];
+                    if (ad === undefined) continue;
+                    if (!ad || typeof ad !== 'object' || Array.isArray(ad) || typeof ad.html !== 'string' || ad.html.length > AdCode.MAX_LENGTH) {
+                        return sendJSON(req, res, 400, { status: 'error', message: `${slot} 广告代码过长或格式错误，请精简后保存（编码后最多 ${AdCode.MAX_LENGTH} 字符）` });
+                    }
+                    try {
+                        if (ad.html.startsWith(AdCode.PREFIX) && !AdCode.decode(ad.html)) throw new Error('广告代码编码无效或已截断，请重新粘贴原始代码');
+                        AdCode.normalize(ad.html, ad.format || 'auto');
+                        AdCode.executionMode('', ad.mode || 'auto');
+                    } catch (error) {
+                        return sendJSON(req, res, 400, { status: 'error', message: `${slot}: ${error.message}` });
+                    }
+                }
+            }
             for (const field of allowed) {
                 if (field in data) {
                     config[field] = data[field];

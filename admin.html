@@ -1122,7 +1122,8 @@
         <div class="section-card" id="settings-ads" tabindex="-1" aria-label="广告位管理">
             <div class="section-header"><span class="section-icon">📣</span><span class="section-title">广告位管理</span>
             </div>
-            <p class="section-desc">预留 Head、前台顶部、信息区下方、地图下方四个广告位。Head 广告位会直接注入首页 <code>&lt;head&gt;</code>，适合 Google AdSense 站点验证和自动广告代码。</p>
+            <p class="section-desc">Head 代码注入首页 <code>&lt;head&gt;</code>，用于平台加载器、AdSense 验证或自动广告；它本身不一定展示横幅。横幅代码放在对应的页面广告位，并打开该广告位开关。支持 HTML、纯 JS 或 HTTP(S) 脚本 URL，代码无需手动编码。</p>
+            <p class="section-desc">自动模式：普通 JS 在独立广告文档中执行，兼容 <code>document.write</code> 和多个广告位的独立变量；AdSense 在页面内执行。必须操作首页 DOM 的广告可选「页面内」。广告代码拥有脚本权限，请只粘贴可信平台代码；独立文档不是安全沙箱。域名审核、填充率、HTTPS 和广告拦截仍可能影响实际展示。</p>
             <div class="settings-grid">
                 <div class="setting-panel">
                     <div class="setting-panel-head">
@@ -1131,7 +1132,7 @@
                             <div class="setting-panel-desc">注入到首页 head 标签内。</div>
                         </div>
                         <label class="panel-toggle" title="启用 Head 广告位">
-                            <input type="checkbox" id="ad-head-enabled">
+                            <input type="checkbox" id="ad-head-enabled" aria-label="启用 Head 广告位">
                             <span></span>
                         </label>
                     </div>
@@ -1144,7 +1145,7 @@
                             <div class="setting-panel-desc">显示在 Hero 与表单之间。</div>
                         </div>
                         <label class="panel-toggle" title="启用顶部广告位">
-                            <input type="checkbox" id="ad-top-enabled">
+                            <input type="checkbox" id="ad-top-enabled" aria-label="启用顶部广告位">
                             <span></span>
                         </label>
                     </div>
@@ -1157,7 +1158,7 @@
                             <div class="setting-panel-desc">显示在身份卡片和地图之间。</div>
                         </div>
                         <label class="panel-toggle" title="启用信息区下方广告位">
-                            <input type="checkbox" id="ad-inline-enabled">
+                            <input type="checkbox" id="ad-inline-enabled" aria-label="启用信息区下方广告位">
                             <span></span>
                         </label>
                     </div>
@@ -1170,7 +1171,7 @@
                             <div class="setting-panel-desc">显示在地图区域之后。</div>
                         </div>
                         <label class="panel-toggle" title="启用地图下方广告位">
-                            <input type="checkbox" id="ad-footer-enabled">
+                            <input type="checkbox" id="ad-footer-enabled" aria-label="启用地图下方广告位">
                             <span></span>
                         </label>
                     </div>
@@ -1179,7 +1180,10 @@
             </div>
             <div class="stacked-actions">
                 <button class="btn-save" onclick="saveAds()">保存广告位</button>
+                <button class="btn-save" type="button" id="ad-check-btn" onclick="checkAdsDelivery()">检查已保存配置</button>
+                <a class="back-btn" href="index.html?ad_debug=1" target="_blank" rel="noopener noreferrer">查看前台诊断 ↗</a>
             </div>
+            <div id="ads-delivery-status" role="status" aria-live="polite"></div>
         </div>
 
         <!-- 7. Donations -->
@@ -1265,39 +1269,20 @@
 
     <div class="toast-admin" id="toast"></div>
 
+    <script src="ad-code.js?v=1.2.21"></script>
     <script>
         // Session state
         let sessionPassword = '';
         let sessionToken = '';
         let currentConfig = {};
-        const AD_STORAGE_PREFIX = 'identitygen-ad:v1:';
         const AD_SLOTS = ['head', 'top', 'inline', 'footer'];
 
         function encodeAdHtml(value) {
-            const raw = String(value || '');
-            if (!raw.trim()) return '';
-            if (raw.startsWith(AD_STORAGE_PREFIX)) return raw;
-            const bytes = new TextEncoder().encode(raw);
-            let binary = '';
-            bytes.forEach(byte => { binary += String.fromCharCode(byte); });
-            return AD_STORAGE_PREFIX + btoa(binary);
+            return AdCode.encode(value);
         }
 
         function decodeAdHtml(value) {
-            const raw = String(value || '');
-            if (!raw.startsWith(AD_STORAGE_PREFIX)) return raw;
-            const encoded = raw.slice(AD_STORAGE_PREFIX.length);
-            try {
-                const binary = atob(encoded);
-                const bytes = Uint8Array.from(binary, c => c.charCodeAt(0));
-                return new TextDecoder().decode(bytes);
-            } catch (e) {
-                try {
-                    return decodeURIComponent(escape(atob(encoded)));
-                } catch (fallbackError) {
-                    return '';
-                }
-            }
+            return AdCode.decode(value);
         }
 
         // ── API helpers ──
@@ -1728,7 +1713,9 @@
             AD_SLOTS.forEach(slot => {
                 ads[slot] = {
                     enabled: document.getElementById(`ad-${slot}-enabled`).checked,
-                    html: encodeAdHtml(document.getElementById(`ad-${slot}-html`).value)
+                    html: encodeAdHtml(document.getElementById(`ad-${slot}-html`).value),
+                    format: document.getElementById(`ad-${slot}-format`).value,
+                    mode: slot === 'head' ? 'page' : document.getElementById(`ad-${slot}-mode`).value
                 };
             });
             return ads;
@@ -1736,6 +1723,12 @@
 
         async function saveAds() {
             const submittedAds = readAdsForm();
+            for (const slot of AD_SLOTS) {
+                const ad = submittedAds[slot];
+                if (ad.html.length > AdCode.MAX_LENGTH) return toast(`${slot} 广告代码过长：编码后最多 ${AdCode.MAX_LENGTH} 字符，请精简代码或使用脚本 URL`, 'error');
+                try { AdCode.normalize(ad.html, ad.format); }
+                catch (error) { return toast(`${slot}: ${error.message}`, 'error'); }
+            }
             const result = await apiPost('save', authBody({
                 data: { ads: submittedAds }
             }));
@@ -1746,17 +1739,87 @@
                 const lostSlots = AD_SLOTS.filter(slot => {
                     const submitted = submittedAds[slot] || {};
                     const saved = savedAds[slot] || {};
-                    return submitted.enabled && submitted.html && !saved.html;
+                    return Boolean(submitted.enabled) !== Boolean(saved.enabled) || decodeAdHtml(submitted.html) !== decodeAdHtml(saved.html) ||
+                        submitted.format !== (saved.format || 'auto') || (slot !== 'head' && submitted.mode !== (saved.mode || 'auto'));
                 });
                 if (lostSlots.length) {
-                    toast('广告代码未被后端保存，请重启 server.js 后再保存', 'error');
+                    toast('广告配置未完整保存：请更新并重启 server.js，保留输入后重试', 'error');
                     return;
                 }
                 loadConfigUI();
-                toast('✅ 广告位已保存');
+                toast('✅ 广告位已保存；请打开前台诊断确认加载和平台填充');
+                await checkAdsDelivery();
             } else {
                 toast(result.message || '保存失败', 'error');
             }
+        }
+
+        function initAdEditors() {
+            AD_SLOTS.forEach(slot => {
+                const editor = document.getElementById(`ad-${slot}-html`);
+                const controls = document.createElement('div');
+                controls.className = 'settings-grid';
+                controls.style.marginBottom = '12px';
+                const addSelect = (kind, title, options) => {
+                    const label = document.createElement('label');
+                    label.className = 'field-label';
+                    label.textContent = title;
+                    const select = document.createElement('select');
+                    select.id = `ad-${slot}-${kind}`;
+                    select.className = 'field-input';
+                    options.forEach(([value, text]) => {
+                        const option = document.createElement('option');
+                        option.value = value;
+                        option.textContent = text;
+                        select.appendChild(option);
+                    });
+                    label.appendChild(select);
+                    controls.appendChild(label);
+                };
+                addSelect('format', '代码类型', [['auto','自动识别'],['html','HTML / script 标签'],['js','纯 JavaScript'],['url','脚本 URL']]);
+                if (slot !== 'head') addSelect('mode', '执行方式', [['auto','自动（推荐）'],['frame','独立广告文档'],['page','页面内（DOM 集成）']]);
+                editor.before(controls);
+            });
+        }
+
+        async function checkAdsDelivery() {
+            const status = document.getElementById('ads-delivery-status');
+            const button = document.getElementById('ad-check-btn');
+            button.disabled = true;
+            setStatus(status, 'info', '正在检查已保存的配置与首页注入，不执行广告或调用广告平台');
+            try {
+                const base = await detectAPI();
+                if (!base) throw new Error('无法连接后端');
+                const response = await fetch(base, { cache:'no-store' });
+                const json = await response.json();
+                if (!response.ok || json.status !== 'ok' || !json.data) throw new Error('前台配置接口不可用');
+                const ads = json.data.ads || {};
+                const details = [];
+                let mismatch = false;
+                for (const slot of AD_SLOTS) {
+                    const ad = ads[slot] || {};
+                    const saved = (currentConfig.ads || {})[slot] || {};
+                    if (decodeAdHtml(ad.html) !== decodeAdHtml(saved.html) || Boolean(ad.enabled) !== Boolean(saved.enabled) ||
+                        (ad.format || 'auto') !== (saved.format || 'auto') || (ad.mode || 'auto') !== (saved.mode || 'auto')) mismatch = true;
+                    const code = AdCode.normalize(ad.html, ad.format);
+                    details.push(`${slot}: ${!ad.enabled ? '未启用' : !code ? '已启用但代码为空' : `${decodeAdHtml(ad.html).length} 字符 · ${slot === 'head' ? 'Head 注入' : AdCode.executionMode(code, ad.mode) === 'frame' ? '独立文档' : '页面内'}`}`);
+                }
+                const head = ads.head || {};
+                if (head.enabled && head.html) {
+                    const homepage = await fetch('index.html', { cache:'no-store' });
+                    const html = await homepage.text();
+                    if (!homepage.ok || !html.includes(AdCode.normalize(head.html, head.format))) {
+                        mismatch = true;
+                        details.push('Head 注入未检测到：检查是否由新版 Node 服务提供首页，而非 Nginx/PHP 直接读取静态 HTML');
+                    } else details.push('Head 代码已注入首页响应（不等于广告平台已填充）');
+                }
+                if (mismatch) details.push('配置或首页响应不一致，请检查后端版本和代理缓存；当前输入未自动覆盖');
+                details.push('检查的是已保存配置；页面脚本加载和实际广告内容请点击「查看前台诊断」');
+                setStatus(status, mismatch ? 'error' : 'ok', details.join('\n'));
+                status.style.whiteSpace = 'pre-line';
+            } catch (error) {
+                setStatus(status, 'error', error.message || '广告配置检查失败');
+            } finally { button.disabled = false; }
         }
 
         function donationRowTemplate(item) {
@@ -1987,6 +2050,8 @@
                 const cfg = ads[slot] || {};
                 document.getElementById(`ad-${slot}-enabled`).checked = Boolean(cfg.enabled);
                 document.getElementById(`ad-${slot}-html`).value = decodeAdHtml(cfg.html);
+                document.getElementById(`ad-${slot}-format`).value = cfg.format || 'auto';
+                if (slot !== 'head') document.getElementById(`ad-${slot}-mode`).value = cfg.mode || 'auto';
             });
 
             const donation = currentConfig.donation || {};
@@ -2028,6 +2093,7 @@
 
         // Init theme on load
         initAdminTheme();
+        initAdEditors();
         bindToggleStyles();
     </script>
 </body>

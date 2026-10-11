@@ -10,11 +10,11 @@ let currentLang = 'en';
 let currentIdentity = {};
 let generationSeq = 0;
 let currentTheme = localStorage.getItem('idgen_theme') || 'light';
-const AD_STORAGE_PREFIX = 'identitygen-ad:v1:';
-const AD_WRITE_SETTLE_MS = 2500;
+const AD_WRITE_SETTLE_MS = 100;
 let adRenderSeq = 0;
 let adRenderBatch = 0;
 let adRenderQueue = Promise.resolve();
+const adCleanup = new WeakMap();
 
 const $ = id => document.getElementById(id);
 const pick = arr => arr[Math.floor(Math.random() * arr.length)];
@@ -24,46 +24,21 @@ const randInt = (min, max) => Math.floor(Math.random() * (max - min + 1)) + min;
 let serverConfig = {};
 
 function decodeAdHtml(value) {
-    const raw = String(value || '');
-    if (!raw.startsWith(AD_STORAGE_PREFIX)) return raw;
-    const encoded = raw.slice(AD_STORAGE_PREFIX.length);
-    try {
-        const binary = atob(encoded);
-        const bytes = Uint8Array.from(binary, c => c.charCodeAt(0));
-        return new TextDecoder().decode(bytes);
-    } catch (e) {
-        try {
-            return decodeURIComponent(escape(atob(encoded)));
-        } catch (fallbackError) {
-            return '';
-        }
-    }
+    return AdCode.decode(value);
 }
 
 function getAdDimensions(html) {
     const text = String(html || '');
-    const width = text.match(/['"]width['"]\s*:\s*(\d+)/i);
-    const height = text.match(/['"]height['"]\s*:\s*(\d+)/i);
+    const width = text.match(/(?:['"]width['"]|\bwidth)\s*:\s*(\d+)/i);
+    const height = text.match(/(?:['"]height['"]|\bheight)\s*:\s*(\d+)/i);
     return {
         width: width ? Math.min(Math.max(parseInt(width[1], 10), 1), 1200) : 0,
         height: height ? Math.min(Math.max(parseInt(height[1], 10), 1), 600) : 0
     };
 }
 
-function looksLikeRawAdScript(value) {
-    const text = String(value || '').trim();
-    if (!text || text.startsWith('<')) return false;
-    return /\b(window\.)?atOptions\s*=|\bdocument\.(write|writeln|createElement)\b|\badsbygoogle\b|\bgoogletag\b|\bappendChild\b|\bsrc\s*=|\.js\b/i.test(text);
-}
-
-function escapeScriptText(value) {
-    return String(value || '').replace(/<\/script/gi, '<\\/script');
-}
-
-function normalizeAdHtml(value) {
-    const html = decodeAdHtml(value).trim();
-    if (!html) return '';
-    return looksLikeRawAdScript(html) ? `<script>${escapeScriptText(html)}</script>` : html;
+function normalizeAdHtml(value, format) {
+    return AdCode.normalize(value, format);
 }
 
 function isAdRenderActive(container, renderId) {
@@ -98,13 +73,99 @@ function hasRenderedAdContent(container) {
     });
 }
 
-function hideEmptyAdSlot(container, renderId) {
-    if (!isAdRenderActive(container, renderId) || hasRenderedAdContent(container)) return;
-    container.innerHTML = '';
-    delete container.dataset.adRenderId;
-    container.style.removeProperty('--ad-width');
-    container.style.removeProperty('--ad-height');
-    container.hidden = true;
+function setAdStatus(container, state) {
+    container.dataset.adState = state;
+    if (new URL(window.location.href).searchParams.get('ad_debug') !== '1') return;
+    const id = container.id + '-diagnostic';
+    let label = document.getElementById(id);
+    if (!label) {
+        label = document.createElement('p');
+        label.id = id;
+        label.className = 'ad-diagnostic';
+        label.setAttribute('role', 'status');
+        container.insertAdjacentElement('afterend', label);
+    }
+    const messages = {
+        disabled:'未启用或没有代码', loading:'正在加载广告代码',
+        ready:'广告内容已插入；实际填充由广告平台决定',
+        pending:'代码已加载但暂无可见内容：检查平台填充、域名授权和广告拦截',
+        error:'加载失败：检查浏览器 Console / Network、脚本地址、HTTPS 和广告拦截'
+    };
+    label.textContent = `${container.id} · ${messages[state] || state}`;
+}
+
+function watchPageAd(container, renderId, failed) {
+    const update = () => {
+        if (isAdRenderActive(container, renderId)) {
+            setAdStatus(container, failed ? 'error' : hasRenderedAdContent(container) ? 'ready' : 'pending');
+        }
+    };
+    const observer = new MutationObserver(update);
+    observer.observe(container, { childList:true, subtree:true, characterData:true });
+    adCleanup.set(container, () => observer.disconnect());
+    update();
+}
+
+function renderAdFrame(container, html, renderId) {
+    const frame = document.createElement('iframe');
+    frame.className = 'ad-content-frame';
+    frame.title = 'Advertisement';
+    frame.setAttribute('scrolling', 'auto');
+    const parsed = document.createElement('template');
+    parsed.innerHTML = html;
+    // Classic loaders need parser insertion for document.write and ordered atOptions.
+    parsed.content.querySelectorAll('script[src]').forEach(script => {
+        if (script.type === 'module') return;
+        script.removeAttribute('async');
+        script.removeAttribute('defer');
+    });
+    let observers = [];
+    let timer;
+    const measure = () => {
+        if (!isAdRenderActive(container, renderId)) return;
+        try {
+            const doc = frame.contentDocument;
+            if (!doc || !doc.body) return;
+            const dimensions = getAdDimensions(html);
+            const height = Math.max(48, dimensions.height, Math.ceil(doc.body.getBoundingClientRect().height), doc.body.scrollHeight);
+            const value = Math.min(height, 2000) + 'px';
+            if (frame.style.height !== value) frame.style.height = value;
+            const failed = frame.contentWindow.__identityAdErrors > 0;
+            setAdStatus(container, failed ? 'error' : hasRenderedAdContent(doc.body) ? 'ready' : 'pending');
+        } catch (_) { setAdStatus(container, 'error'); }
+    };
+    frame.onload = () => {
+        clearTimeout(timer);
+        observers.forEach(observer => observer.disconnect());
+        observers = [];
+        try {
+            const doc = frame.contentDocument;
+            if (!doc || !doc.body) return setAdStatus(container, 'error');
+            if (typeof ResizeObserver !== 'undefined') {
+                const resize = new ResizeObserver(measure);
+                resize.observe(doc.body);
+                observers.push(resize);
+            }
+            const mutations = new MutationObserver(measure);
+            mutations.observe(doc.body, { childList:true, subtree:true, attributes:true, characterData:true });
+            observers.push(mutations);
+            doc.addEventListener('load', measure, true);
+            measure();
+        } catch (_) { setAdStatus(container, 'error'); }
+    };
+    // Layout/global isolation, not a security sandbox: only trusted admin code is allowed.
+    const base = document.baseURI.replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;');
+    frame.srcdoc = `<!doctype html><html><head><meta charset="utf-8"><base href="${base}"><style>html,body{margin:0;padding:0}body{display:flow-root}img{max-width:100%}</style><script>window.__identityAdErrors=0;window.addEventListener('error',function(){window.__identityAdErrors++},true);<\/script></head><body>${parsed.innerHTML}</body></html>`;
+    setAdStatus(container, 'loading');
+    container.appendChild(frame);
+    timer = setTimeout(() => {
+        if (isAdRenderActive(container, renderId)) setAdStatus(container, 'pending');
+    }, 15000);
+    adCleanup.set(container, () => {
+        clearTimeout(timer);
+        observers.forEach(observer => observer.disconnect());
+        frame.onload = null;
+    });
 }
 
 async function runAdScript(container, sourceNode, renderId) {
@@ -112,14 +173,13 @@ async function runAdScript(container, sourceNode, renderId) {
 
     const script = document.createElement('script');
     Array.from(sourceNode.attributes).forEach(attr => script.setAttribute(attr.name, attr.value));
-    const shouldRunAsync = script.src && (sourceNode.hasAttribute('async') || sourceNode.hasAttribute('defer'));
-    if (script.src && !shouldRunAsync) script.async = false;
+    if (script.src) script.async = false;
     script.textContent = sourceNode.textContent || '';
 
-    const loaded = script.src ? new Promise(resolve => {
-        script.onload = resolve;
-        script.onerror = resolve;
-        setTimeout(resolve, 12000);
+    const loaded = script.src ? new Promise((resolve, reject) => {
+        const timer = setTimeout(() => reject(new Error('Ad script timed out')), 12000);
+        script.onload = () => { clearTimeout(timer); resolve(); };
+        script.onerror = () => { clearTimeout(timer); reject(new Error('Ad script failed to load')); };
     }) : Promise.resolve();
 
     if (sourceNode.isConnected && sourceNode.parentNode && sourceNode.parentNode !== container) {
@@ -127,7 +187,6 @@ async function runAdScript(container, sourceNode, renderId) {
     } else {
         container.appendChild(script);
     }
-    if (shouldRunAsync) return;
     await loaded;
 }
 
@@ -156,23 +215,38 @@ async function withAdDocumentWrite(container, task, renderId) {
     const originalWrite = document.write;
     const originalWriteln = document.writeln;
     let writeQueue = Promise.resolve();
+    let buffer = '';
+    let scheduled = false;
 
-    const writeToAd = value => {
+    const flush = () => {
+        scheduled = false;
+        if (!buffer) return;
+        const text = buffer;
+        buffer = '';
         if (!isAdRenderActive(container, renderId)) return;
         const tpl = document.createElement('template');
-        tpl.innerHTML = String(value || '');
+        tpl.innerHTML = text;
         Array.from(tpl.content.childNodes).forEach(node => {
             writeQueue = writeQueue.then(() => insertAdNode(container, node, renderId));
         });
     };
+    const writeToAd = (...values) => {
+        buffer += values.map(String).join('');
+        if (!scheduled) { scheduled = true; queueMicrotask(flush); }
+    };
+    const drain = async () => {
+        flush();
+        let pending;
+        do { pending = writeQueue; await pending; } while (pending !== writeQueue);
+    };
 
     document.write = writeToAd;
-    document.writeln = value => writeToAd(`${value}\n`);
+    document.writeln = (...values) => writeToAd(...values, '\n');
     try {
         await task();
-        await writeQueue;
+        await drain();
         await wait(AD_WRITE_SETTLE_MS);
-        await writeQueue;
+        await drain();
     } finally {
         document.write = originalWrite;
         document.writeln = originalWriteln;
@@ -462,7 +536,28 @@ async function renderAdsNow(batchId) {
         const el = $(`ad-${slot}`);
         if (!el) continue;
         const cfg = ads[slot] || {};
-        const adHtml = normalizeAdHtml(cfg.html);
+        let adHtml, mode;
+        try {
+            adHtml = normalizeAdHtml(cfg.html, cfg.format);
+            mode = AdCode.executionMode(adHtml, cfg.mode);
+        } catch (error) {
+            console.warn(`Invalid ad configuration for ${slot}`, error.message);
+            const cleanup = adCleanup.get(el);
+            if (cleanup) { cleanup(); adCleanup.delete(el); }
+            el.innerHTML = '';
+            delete el.dataset.adConfigKey;
+            delete el.dataset.adRenderId;
+            el.style.removeProperty('--ad-width');
+            el.style.removeProperty('--ad-height');
+            el.hidden = true;
+            setAdStatus(el, 'error');
+            continue;
+        }
+        const key = JSON.stringify([Boolean(cfg.enabled), adHtml, mode]);
+        if (el.dataset.adConfigKey === key) continue;
+        el.dataset.adConfigKey = key;
+        const cleanup = adCleanup.get(el);
+        if (cleanup) { cleanup(); adCleanup.delete(el); }
         if (cfg.enabled && adHtml) {
             el.innerHTML = '';
             const renderId = String(++adRenderSeq);
@@ -471,16 +566,25 @@ async function renderAdsNow(batchId) {
             el.style.setProperty('--ad-width', dimensions.width ? `${dimensions.width}px` : '100%');
             el.style.setProperty('--ad-height', dimensions.height ? `${dimensions.height}px` : 'auto');
             el.hidden = false;
+            if (mode === 'frame') {
+                renderAdFrame(el, adHtml, renderId);
+                continue;
+            }
+            setAdStatus(el, 'loading');
+            let failed = false;
             await renderAdHtml(el, adHtml, renderId).catch(error => {
+                failed = true;
                 console.warn(`Ad render failed for slot "${slot}"`, error);
             });
-            hideEmptyAdSlot(el, renderId);
+            // Keep empty placeholders: a Head loader may populate them asynchronously.
+            watchPageAd(el, renderId, failed);
         } else {
             el.innerHTML = '';
             delete el.dataset.adRenderId;
             el.style.removeProperty('--ad-width');
             el.style.removeProperty('--ad-height');
             el.hidden = true;
+            setAdStatus(el, 'disabled');
         }
     }
 }

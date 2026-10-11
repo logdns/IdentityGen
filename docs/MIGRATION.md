@@ -2,6 +2,14 @@
 
 本文档用于从没有后台版本更新功能的旧版本迁移到新版。
 
+## 迁移到 v1.2.21
+
+v1.2.21 修复后台广告代码保存到前台执行的完整链路，支持纯 JavaScript、HTML 和脚本 URL，修正慢加载、多个广告位变量冲突及切换国家/语言时重复执行问题。新增代码类型、执行方式、已保存配置检查与前台诊断入口；保留原有后台导航和 Card BIN/IIN 功能。
+
+此修复新增前后台共用的 `ad-code.js`；文件上传部署必须同步上传该文件、`server.js`、`admin.html`、`app.js`、`index.html` 和 `style.css`，并重启 Node.js。保留现有 `config.json`，旧广告配置默认自动识别，无需重填真实 Key。代码类型与执行方式为可选字段；新后台会保存它们，旧后端会丢弃这些字段并触发保存校验错误，因此必须同步更新前后台。
+
+若旧版本已把长广告代码截断，更新不能恢复丢失内容，需要从平台重新复制完整代码；新版本会明确拒绝过长代码。Head 注入只在 Node 提供首页响应时生效，可用后台「检查已保存配置」检测，再从前台诊断确认脚本加载与平台填充。
+
 ## 迁移到 v1.2.20
 
 v1.2.20 完善后台全部 9 个模块的功能导航：桌面端使用固定侧栏，手机和平板使用横向顶部导航，并随页面滚动高亮当前位置。支持键盘焦点、减少动态效果偏好和登录后通过 `admin.html#settings-bin` 等链接直达模块；固定栏高度自动计算，避免遮挡目标标题。所有表单仍保留在同一页，导航不会清空未保存输入，低高度窗口可滚动导航。修正旧默认密码提示，新增导航回归测试。
@@ -416,6 +424,7 @@ style.css
 app.js
 bin-ui.js
 bin-lookup.js
+ad-code.js
 data.js
 config.example.json
 ```
@@ -581,9 +590,9 @@ git stash show -p stash@{0}
 新版本发布时，从已审核提交创建 tag，并同步推送 `main` 与 tag：
 
 ```bash
-test "$(cat VERSION)" = "1.2.20"
-git tag -a v1.2.20 -m "Release v1.2.20"
-git push --atomic origin main refs/tags/v1.2.20
+test "$(cat VERSION)" = "1.2.21"
+git tag -a v1.2.21 -m "Release v1.2.21"
+git push --atomic origin main refs/tags/v1.2.21
 ```
 
 后台显示的版本号来自仓库根目录的 `VERSION` 文件。发布新版本时，请先更新 `VERSION` 文件，再提交和打 tag。
@@ -591,9 +600,9 @@ git push --atomic origin main refs/tags/v1.2.20
 发布包必须从不可变 tag 构建，不能从未提交的工作区打包；同时生成 SHA-256 清单，并在上传后核对远端制品：
 
 ```bash
-git archive --format=tar.gz --prefix=IdentityGen-v1.2.20/ -o IdentityGen-v1.2.20.tar.gz v1.2.20
-git archive --format=zip --prefix=IdentityGen-v1.2.20/ -o IdentityGen-v1.2.20.zip v1.2.20
-shasum -a 256 IdentityGen-v1.2.20.tar.gz IdentityGen-v1.2.20.zip > SHA256SUMS
+git archive --format=tar.gz --prefix=IdentityGen-v1.2.21/ -o IdentityGen-v1.2.21.tar.gz v1.2.21
+git archive --format=zip --prefix=IdentityGen-v1.2.21/ -o IdentityGen-v1.2.21.zip v1.2.21
+shasum -a 256 IdentityGen-v1.2.21.tar.gz IdentityGen-v1.2.21.zip > SHA256SUMS
 ```
 
 版本 tag 应启用 GitHub tag ruleset 保护；Release 创建和制品替换权限只授予发布维护者。条件允许时使用签名 tag 或 provenance attestation，并开启 immutable releases。
