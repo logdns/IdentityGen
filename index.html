@@ -17,7 +17,7 @@
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@fontsource/jetbrains-mono@5/400.min.css">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@fontsource/jetbrains-mono@5/500.min.css">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@fontsource/jetbrains-mono@5/600.min.css">
-    <link rel="stylesheet" href="style.css?v=1.2.18">
+    <link rel="stylesheet" href="style.css?v=1.2.19">
 </head>
 
 <body>
@@ -234,7 +234,10 @@
 
     <dialog class="bin-dialog" id="bin-dialog" aria-labelledby="bin-title" aria-describedby="bin-intro">
         <div class="bin-dialog-head">
-            <div><span class="bin-eyebrow">CARD INTELLIGENCE</span><h2 id="bin-title">Card BIN/IIN</h2></div>
+            <div class="bin-title-group">
+                <span class="bin-title-icon" aria-hidden="true"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><rect x="3" y="5" width="18" height="14" rx="3"/><path d="M3 10h18M7 15h4"/></svg></span>
+                <div><span class="bin-eyebrow" data-bin-i18n="eyebrow">CARD LOOKUP</span><h2 id="bin-title">Card BIN/IIN</h2></div>
+            </div>
             <button class="bin-close" id="bin-close" type="button" aria-label="Close">×</button>
         </div>
         <p class="bin-intro" id="bin-intro" data-bin-i18n="intro">Look up an issuing bank using only a 6- or 8-digit BIN/IIN. Never enter a full card number.</p>
@@ -245,11 +248,24 @@
                 <button class="bin-submit" id="bin-submit" type="submit" data-bin-i18n="lookup">Look up</button>
             </div>
         </form>
-        <p class="bin-status" id="bin-status" role="status" aria-live="polite"></p>
+        <p class="bin-status" id="bin-status" role="status" aria-live="polite" hidden></p>
+        <div class="bin-empty" id="bin-empty">
+            <div class="bin-empty-art" aria-hidden="true"><svg width="44" height="32" viewBox="0 0 44 32" fill="none"><rect x="1" y="1" width="42" height="30" rx="6" stroke="currentColor" stroke-width="1.5"/><path d="M1 10h42M8 23h8M30 23h6" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg></div>
+            <strong data-bin-i18n="empty_title">A little prefix. A clearer picture.</strong>
+            <p data-bin-i18n="empty_text">Find the issuing bank, card network and country. Start with the first 6 or 8 digits.</p>
+        </div>
         <section class="bin-results" id="bin-results" hidden>
-            <div class="bin-result-heading"><strong id="bin-result-prefix"></strong><span id="bin-source"></span></div>
-            <p class="bin-precision" id="bin-precision"></p>
+            <div class="bin-result-heading"><strong id="bin-result-prefix"></strong><span class="bin-source" id="bin-source"></span></div>
+            <dl class="bin-summary">
+                <div class="bin-issuer"><dt data-bin-i18n="issuer">Issuer / bank</dt><dd id="bin-issuer"></dd></div>
+                <div class="bin-country"><dt data-bin-i18n="country">Country</dt><dd id="bin-country"></dd></div>
+            </dl>
             <dl class="bin-result-grid" id="bin-result-grid"></dl>
+            <p class="bin-precision" id="bin-precision"></p>
+            <details class="bin-details" id="bin-details">
+                <summary data-bin-i18n="details">More details</summary>
+                <dl class="bin-detail-grid" id="bin-detail-grid"></dl>
+            </details>
         </section>
         <p class="bin-disclaimer" data-bin-i18n="disclaimer">Reference data only. A BIN lookup does not verify card validity, balance or ownership. Unknown fields are not inferred.</p>
     </dialog>
@@ -270,9 +286,9 @@
         </div>
     </footer>
 
-    <script src="data.js?v=1.2.18"></script>
-    <script src="app.js?v=1.2.18"></script>
-    <script src="bin-ui.js?v=1.2.18"></script>
+    <script src="data.js?v=1.2.19"></script>
+    <script src="app.js?v=1.2.19"></script>
+    <script src="bin-ui.js?v=1.2.19"></script>
 </body>
 
 </html>

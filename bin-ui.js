@@ -3,6 +3,8 @@
 (() => {
     const messages = {
         en: {
+            eyebrow: 'CARD LOOKUP', empty_title: 'A little prefix. A clearer picture.',
+            empty_text: 'Find the issuing bank, card network and country. Start with the first 6 or 8 digits.', details: 'More details',
             intro: 'Look up an issuing bank using only a 6- or 8-digit BIN/IIN. Never enter a full card number.',
             input: 'BIN / IIN', lookup: 'Look up', close: 'Close', loading: 'Looking up…',
             disclaimer: 'Reference data only. A BIN lookup does not verify card validity, balance or ownership. Unknown fields are not inferred.',
@@ -24,6 +26,8 @@
             bank_url: 'Bank website', bank_phone: 'Bank phone', bank_city: 'Bank city'
         },
         'zh-CN': {
+            eyebrow: '银行卡信息查询', empty_title: '从几位数字，了解发卡信息。',
+            empty_text: '查询发卡行、卡组织和国家。输入前 6 位或 8 位数字即可开始。', details: '更多详情',
             intro: '仅使用 6 位 BIN 或 8 位 IIN 查询发卡信息。请勿输入完整银行卡号。',
             input: 'BIN / IIN', lookup: '查询', close: '关闭', loading: '正在查询…',
             disclaimer: '数据仅供参考，不代表银行卡有效、余额或持有人验证。未知字段不会猜测补全。',
@@ -40,6 +44,8 @@
             number_length: '卡号长度', bank_url: '银行网站', bank_phone: '银行电话', bank_city: '银行城市'
         },
         'zh-TW': {
+            eyebrow: '銀行卡資訊查詢', empty_title: '從幾位數字，了解發卡資訊。',
+            empty_text: '查詢發卡行、卡組織和國家。輸入前 6 位或 8 位數字即可開始。', details: '更多詳情',
             intro: '僅使用 6 位 BIN 或 8 位 IIN 查詢發卡資訊。請勿輸入完整銀行卡號。',
             input: 'BIN / IIN', lookup: '查詢', close: '關閉', loading: '正在查詢…',
             disclaimer: '資料僅供參考，不代表卡片有效、餘額或持有人驗證。未知欄位不會推測補全。',
@@ -56,6 +62,8 @@
             number_length: '卡號長度', bank_url: '銀行網站', bank_phone: '銀行電話', bank_city: '銀行城市'
         },
         ja: {
+            eyebrow: 'カード情報検索', empty_title: '数桁から、カードの情報を。',
+            empty_text: '発行銀行、ネットワーク、国を検索。先頭6桁または8桁を入力してください。', details: '詳細を表示',
             intro: '6桁の BIN または8桁の IIN のみを入力してください。カード番号全体は入力しないでください。',
             input: 'BIN / IIN', lookup: '検索', close: '閉じる', loading: '検索中…',
             disclaimer: '参考情報です。カードの有効性、残高、所有者を確認するものではありません。不明な項目は推測しません。',
@@ -95,22 +103,33 @@
         $('bin-submit').disabled = loading;
         $('bin-form').setAttribute('aria-busy', String(loading));
         $('bin-status').textContent = status ? t(status) : '';
+        $('bin-status').hidden = !status || status === 'success';
         $('bin-status').classList.toggle('bin-error', Boolean(status && !['success', 'loading'].includes(status)));
+        $('bin-status').classList.toggle('bin-loading', loading);
+        $('bin-empty').hidden = Boolean(result || loading || status);
         $('bin-results').hidden = !result;
         if (!result) return;
         $('bin-result-prefix').textContent = `BIN / IIN ${result.bin}`;
         $('bin-source').textContent = `${t('source')}: ${result.source === 'handyapi' ? 'HandyAPI' : 'Binlist'}${result.cached ? ` · ${t('cached')}` : ''}`;
         const precision = result.precision < result.bin.length ? 'approximate' : result.precision === 6 ? 'six' : 'eight';
         $('bin-precision').textContent = `${result.fallback_reason ? t('fallback') + ' ' : ''}${t(precision)}`;
-        const grid = $('bin-result-grid');
+        $('bin-precision').classList.toggle('bin-approximate', precision === 'approximate');
+        $('bin-issuer').textContent = result.issuer || t('unknown');
+        $('bin-country').textContent = countryLabel(result.country) || t('unknown');
+        renderFields($('bin-result-grid'), ['scheme', 'type', 'tier']);
+        renderFields($('bin-detail-grid'), ['luhn', 'prepaid', 'number_length', 'bank_url', 'bank_phone', 'bank_city']);
+    }
+
+    function renderFields(grid, fields) {
         grid.replaceChildren();
-        ['scheme', 'type', 'tier', 'issuer', 'country', 'luhn', 'prepaid', 'number_length', 'bank_url', 'bank_phone', 'bank_city'].forEach(key => {
+        fields.forEach(key => {
             const dt = document.createElement('dt');
             const dd = document.createElement('dd');
             dt.textContent = t(key);
-            const value = key === 'country' ? countryLabel(result.country) : result[key];
+            const value = result[key];
             dd.textContent = typeof value === 'boolean' ? t(value ? 'yes' : 'no') : value === null || value === undefined || value === '' ? t('unknown') : String(value);
             const cell = document.createElement('div');
+            cell.className = 'bin-field';
             cell.append(dt, dd);
             grid.appendChild(cell);
         });
@@ -143,6 +162,7 @@
             return;
         }
         loading = true;
+        $('bin-details').open = false;
         $('bin-input').readOnly = true;
         status = 'loading';
         render();
