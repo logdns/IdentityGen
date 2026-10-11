@@ -45,3 +45,17 @@ test('legacy JS defaults to a separate document while AdSense stays in the host 
     assert.equal(AdCode.executionMode('<div>ad</div>', 'frame'), 'frame');
     assert.throws(() => AdCode.executionMode('', 'invalid'));
 });
+
+test('six shared slots map to frontend containers and independent admin editors', () => {
+    assert.deepEqual(AdCode.SLOTS, ['head','top','inline','footer','left','right']);
+    const root = path.join(__dirname,'..');
+    const template = JSON.parse(fs.readFileSync(path.join(root,'config.example.json'),'utf8'));
+    const home = fs.readFileSync(path.join(root,'index.html'),'utf8');
+    const admin = fs.readFileSync(path.join(root,'admin.html'),'utf8');
+    for(const slot of AdCode.SLOTS){
+        assert.equal(template.ads[slot].enabled,false);
+        assert.equal((admin.match(new RegExp(`id="ad-${slot}-enabled"`,'g')) || []).length,1);
+        assert.equal((admin.match(new RegExp(`id="ad-${slot}-html"`,'g')) || []).length,1);
+        if(slot!=='head')assert.equal((home.match(new RegExp(`id="ad-${slot}"`,'g')) || []).length,1);
+    }
+});

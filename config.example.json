@@ -35,6 +35,18 @@
             "html": "",
             "format": "auto",
             "mode": "auto"
+        },
+        "left": {
+            "enabled": false,
+            "html": "",
+            "format": "auto",
+            "mode": "auto"
+        },
+        "right": {
+            "enabled": false,
+            "html": "",
+            "format": "auto",
+            "mode": "auto"
         }
     },
     "donation": {

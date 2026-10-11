@@ -33,7 +33,7 @@ const { once } = require('node:events');
         for (const width of [1440,390,320]) {
             const context = await browser.newContext({viewport:{width,height:900},reducedMotion:'reduce'});
             const errors=[];
-            let requests=0;
+            let requests=0, sideRequests=0;
             await context.route('**/*',async route=>{
                 const url=route.request().url();
                 if(!url.startsWith(origin+'/'))return route.abort();
@@ -45,6 +45,10 @@ const { once } = require('node:events');
                 }
                 if(pathname==='/second-ad.js')return route.fulfill({contentType:'application/javascript',body:'document.write("<div id=fixture-banner>second-"+atOptions.width+"</div>");'});
                 if(pathname==='/failed-ad.js')return route.fulfill({status:404,body:'fixture not found'});
+                if(pathname==='/side-ad.js'){
+                    sideRequests++;
+                    return route.fulfill({contentType:'application/javascript',body:'document.write("<div id=fixture-side style=width:120px;height:600px>","left-"+atOptions.width,"</div>");'});
+                }
                 return route.continue();
             });
             const admin=await context.newPage();admin.on('pageerror',e=>errors.push(e.message));
@@ -73,12 +77,22 @@ const { once } = require('node:events');
             await fillAd('top','<script>var atOptions={width:320,height:80};</script><script async src="/slow-ad.js"></script>');
             await fillAd('inline','<script>var atOptions={width:180,height:60};</script><script defer src="/second-ad.js"></script>');
             await fillAd('footer','document.write("<div id=fixture-banner>","footer-广告","</div>");','js');
+            await fillAd('left','<script>var atOptions={width:120,height:600};</script><script src="/side-ad.js"></script>');
+            await fillAd('right','<div id="fixture-right" style="width:120px;height:600px">right-广告</div>','html','page');
             await saveAds();
             await admin.waitForFunction(()=>document.getElementById('ads-delivery-status').textContent.includes('Head 代码已注入'));
             assert.ok(await admin.evaluate(()=>document.documentElement.scrollWidth<=innerWidth),'admin overflow '+width);
             const publicConfig=await (await context.request.get(origin+'/api')).json();
             assert.equal(publicConfig.data.ads.top.mode,'auto');
             assert.ok(publicConfig.data.ads.top.html.startsWith('identitygen-ad:v1:'));
+            assert.equal(publicConfig.data.ads.left.enabled,true);
+            assert.equal(publicConfig.data.ads.right.mode,'page');
+            await admin.reload();
+            await admin.fill('#pwd-input','fixture-ad-password');await admin.click('button[onclick="doLogin()"]');
+            await admin.waitForSelector('#admin-panel:not(.hidden)');
+            await admin.waitForFunction(()=>getComputedStyle(document.getElementById('login-screen')).visibility==='hidden');
+            assert.equal(await admin.locator('#ad-left-enabled').isChecked(),true);
+            assert.equal(await admin.locator('#ad-right-mode').inputValue(),'page');
             const page=await context.newPage();page.on('pageerror',e=>errors.push(e.message));
             await page.goto(origin+'/index.html?ad_debug=1',{waitUntil:'domcontentloaded'});
             assert.equal(await page.evaluate(()=>window.fixtureHead),'head-ok');
@@ -96,6 +110,76 @@ const { once } = require('node:events');
             assert.equal(requests,1,'unchanged ads must not reload on country/language change');
             assert.ok(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth),'frontend overflow '+width);
             assert.ok(await page.locator('#ad-top iframe').evaluate(e=>e.getBoundingClientRect().height>=48));
+            if(width>=1440){
+                await page.frameLocator('#ad-left iframe').locator('#fixture-side').waitFor();
+                assert.equal(await page.frameLocator('#ad-left iframe').locator('#fixture-side').textContent(),'left-120');
+                await page.locator('#fixture-right').waitFor();
+                const sideFrame=await page.locator('#ad-left iframe').elementHandle();
+                await page.click('#theme-btn');
+                assert.equal(await page.locator('body').evaluate(e=>e.classList.contains('dark-mode')),true);
+                assert.equal(await page.locator('#ad-left iframe').evaluate((e,original)=>e===original,sideFrame),true,'theme change retains side creative');
+                await page.click('#theme-btn');
+                const checkGutters=async()=>assert.ok(await page.evaluate(()=>{
+                    const main=document.querySelector('main').getBoundingClientRect();
+                    const left=document.getElementById('side-ad-left').getBoundingClientRect();
+                    const right=document.getElementById('side-ad-right').getBoundingClientRect();
+                    return left.right<=main.left && right.left>=main.right && left.left>=0 && right.right<=innerWidth;
+                }),'side ads must not overlap main content or overflow');
+                await checkGutters();
+                if(process.env.AD_SCREENSHOT_DIR){
+                    fs.mkdirSync(process.env.AD_SCREENSHOT_DIR,{recursive:true});
+                    await page.screenshot({path:path.join(process.env.AD_SCREENSHOT_DIR,'side-ads-desktop.png')});
+                    await admin.locator('#ad-left-html').scrollIntoViewIfNeeded();
+                    await admin.screenshot({path:path.join(process.env.AD_SCREENSHOT_DIR,'side-ads-admin.png')});
+                }
+                await page.click('#bin-open');
+                assert.equal(await page.locator('#bin-dialog').evaluate(e=>e.open),true,'dialog stays above side rails');
+                await page.keyboard.press('Escape');
+                await page.setViewportSize({width:1366,height:900});
+                await page.waitForFunction(()=>document.getElementById('side-ad-left').hidden);
+                assert.equal(await page.locator('#side-ad-right').isVisible(),false);
+                await page.setViewportSize({width:1600,height:900});
+                await page.locator('#side-ad-left').waitFor();
+                await checkGutters();
+                assert.equal(await page.locator('#ad-left iframe').evaluate((e,original)=>e===original,sideFrame),true);
+                assert.equal(sideRequests,1,'resizing must not load the side creative twice');
+                await page.setViewportSize({width:1600,height:400});
+                assert.ok(await page.locator('#side-ad-left').evaluate(e=>{
+                    const rect=e.getBoundingClientRect();
+                    return rect.top>=document.querySelector('header').getBoundingClientRect().bottom && rect.bottom<=innerHeight;
+                }),'short-window rail stays below header and inside viewport');
+                await page.locator('#side-ad-left').evaluate(e=>{e.scrollTop=300;});
+                assert.ok(await page.locator('[data-ad-close="left"]').evaluate(e=>e.getBoundingClientRect().top>=document.querySelector('header').getBoundingClientRect().bottom),'close remains accessible while scrolling');
+                await page.setViewportSize({width:1600,height:900});
+                await page.click('[data-ad-close="left"]');
+                assert.equal(await page.locator('#side-ad-left').isVisible(),false);
+                assert.equal(await page.locator('#ad-left iframe').count(),0);
+                await page.selectOption('#lang-select','zh-TW');
+                assert.equal(await page.locator('[data-ad-close="right"]').getAttribute('aria-label'),'關閉廣告');
+                assert.equal(await page.locator('#side-ad-left').isVisible(),false,'dismissal survives language/country rerender');
+                assert.equal(await page.locator('#side-ad-right').isVisible(),true);
+                await page.evaluate(()=>document.getElementById('ad-right').focus());
+                await page.locator('[data-ad-close="right"]').focus();
+                await page.keyboard.press('Enter');
+                assert.equal(await page.locator('#side-ad-right').isVisible(),false);
+                await page.reload({waitUntil:'domcontentloaded'});
+                await page.frameLocator('#ad-left iframe').locator('#fixture-side').waitFor();
+                assert.equal(await page.locator('#side-ad-right').isVisible(),true,'reload restores dismissed rails');
+                await page.setViewportSize({width,height:900});
+            }else{
+                assert.equal(await page.locator('#side-ad-left').isVisible(),false);
+                assert.equal(await page.locator('#side-ad-right').isVisible(),false);
+                assert.equal(await page.locator('#ad-left iframe').count(),0);
+                assert.equal(await page.locator('#fixture-right').count(),0);
+                assert.equal(sideRequests,0,'narrow viewports must not request hidden side ads');
+                await page.setViewportSize({width:1440,height:900});
+                await page.frameLocator('#ad-left iframe').locator('#fixture-side').waitFor();
+                assert.equal(sideRequests,1,'first transition to wide loads a suppressed ad once');
+                await page.setViewportSize({width,height:900});
+                await page.waitForFunction(()=>document.getElementById('side-ad-left').hidden);
+                assert.equal(await page.locator('#side-ad-right').isVisible(),false);
+                assert.ok(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth),'resized mobile overflow');
+            }
             // A known page-integrated library must remain outside the independent documents.
             await fillAd('footer','<ins class="adsbygoogle" id="fixture-sense"></ins><script>window.fixtureSense=(window.fixtureSense||0)+1;document.getElementById("fixture-sense").textContent="sense-ok";</script>');
             await saveAds();
@@ -135,10 +219,16 @@ const { once } = require('node:events');
             await page.reload({waitUntil:'domcontentloaded'});
             await page.waitForFunction(()=>document.getElementById('ad-top').dataset.adState==='disabled');
             assert.equal(await page.locator('#ad-top').isVisible(),false);
+            await toggleAd('left',false);await toggleAd('right',false);await saveAds();
+            await page.reload({waitUntil:'domcontentloaded'});
+            if(width>=1440)await page.waitForFunction(()=>document.getElementById('ad-left').dataset.adState==='disabled');
+            assert.equal(await page.locator('#side-ad-left').isVisible(),false);
+            assert.equal(await page.locator('#side-ad-right').isVisible(),false);
+            assert.equal(await page.locator('#ad-left iframe').count(),0);
             assert.deepEqual(errors,[]);
             await context.close();
         }
-        console.log('PASS ads browser: actual admin/API/Head/homepage, slow async legacy loader, multi-argument write, per-slot globals, retained renders, AdSense page mode, errors/debug, disabled slots, mobile 1440/390/320; external traffic blocked');
+        console.log('PASS ads browser: six-slot admin/API/homepage, slow loaders/write/isolation, retained renders, side gutters 1440/1600, resize 1366, close/reload, mobile suppression 390/320, AdSense/errors/debug/disabled; external traffic blocked');
     } finally {
         if(browser)await browser.close();
         if(child&&child.exitCode===null){child.kill();await once(child,'exit');}

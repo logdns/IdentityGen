@@ -2,6 +2,14 @@
 
 本文档用于从没有后台版本更新功能的旧版本迁移到新版。
 
+近期开发决策、接口与广告对接经验、测试发布流程见 [开发总结](DEVELOPMENT.md)；当前配置和部署入口见 [README](../README.md)。
+
+## 迁移到 v1.2.22
+
+新增 `ads.left` / `ads.right`，默认关闭，后台提供独立开关、代码类型、执行方式及保存/诊断。宽度 ≥ 1440px 显示在主内容两侧，推荐 120 × 600 或响应式素材；160 × 600 建议宽度 ≥ 1504px。平板/手机不新加载侧栏广告；已加载广告在窗口缩小时隐藏、恢复宽屏复用。支持访客分别关闭，刷新页面恢复。
+
+同步更新 `ad-code.js`、`server.js`、`admin.html`、`app.js`、`index.html` 和 `style.css`，重启 Node.js 并刷新浏览器缓存。保留现有 `config.json`、密码、Key 和四个旧广告位；无需手动补配置，新字段会默认关闭。广告部分更新合并保留其他广告位，新后台也会检测旧后端缺少广告位的情况。更新后在后台「广告位管理」分别配置并启用左右广告。
+
 ## 迁移到 v1.2.21
 
 v1.2.21 修复后台广告代码保存到前台执行的完整链路，支持纯 JavaScript、HTML 和脚本 URL，修正慢加载、多个广告位变量冲突及切换国家/语言时重复执行问题。新增代码类型、执行方式、已保存配置检查与前台诊断入口；保留原有后台导航和 Card BIN/IIN 功能。
@@ -590,9 +598,9 @@ git stash show -p stash@{0}
 新版本发布时，从已审核提交创建 tag，并同步推送 `main` 与 tag：
 
 ```bash
-test "$(cat VERSION)" = "1.2.21"
-git tag -a v1.2.21 -m "Release v1.2.21"
-git push --atomic origin main refs/tags/v1.2.21
+test "$(cat VERSION)" = "1.2.22"
+git tag -a v1.2.22 -m "Release v1.2.22"
+git push --atomic origin main refs/tags/v1.2.22
 ```
 
 后台显示的版本号来自仓库根目录的 `VERSION` 文件。发布新版本时，请先更新 `VERSION` 文件，再提交和打 tag。
@@ -600,9 +608,9 @@ git push --atomic origin main refs/tags/v1.2.21
 发布包必须从不可变 tag 构建，不能从未提交的工作区打包；同时生成 SHA-256 清单，并在上传后核对远端制品：
 
 ```bash
-git archive --format=tar.gz --prefix=IdentityGen-v1.2.21/ -o IdentityGen-v1.2.21.tar.gz v1.2.21
-git archive --format=zip --prefix=IdentityGen-v1.2.21/ -o IdentityGen-v1.2.21.zip v1.2.21
-shasum -a 256 IdentityGen-v1.2.21.tar.gz IdentityGen-v1.2.21.zip > SHA256SUMS
+git archive --format=tar.gz --prefix=IdentityGen-v1.2.22/ -o IdentityGen-v1.2.22.tar.gz v1.2.22
+git archive --format=zip --prefix=IdentityGen-v1.2.22/ -o IdentityGen-v1.2.22.zip v1.2.22
+shasum -a 256 IdentityGen-v1.2.22.tar.gz IdentityGen-v1.2.22.zip > SHA256SUMS
 ```
 
 版本 tag 应启用 GitHub tag ruleset 保护；Release 创建和制品替换权限只授予发布维护者。条件允许时使用签名 tag 或 provenance attestation，并开启 immutable releases。

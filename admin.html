@@ -1124,6 +1124,7 @@
             </div>
             <p class="section-desc">Head 代码注入首页 <code>&lt;head&gt;</code>，用于平台加载器、AdSense 验证或自动广告；它本身不一定展示横幅。横幅代码放在对应的页面广告位，并打开该广告位开关。支持 HTML、纯 JS 或 HTTP(S) 脚本 URL，代码无需手动编码。</p>
             <p class="section-desc">自动模式：普通 JS 在独立广告文档中执行，兼容 <code>document.write</code> 和多个广告位的独立变量；AdSense 在页面内执行。必须操作首页 DOM 的广告可选「页面内」。广告代码拥有脚本权限，请只粘贴可信平台代码；独立文档不是安全沙箱。域名审核、填充率、HTTPS 和广告拦截仍可能影响实际展示。</p>
+            <p class="section-desc">左右对联广告独立配置，适合 120 × 600 / 160 × 600 竖幅。仅在宽度 ≥ 1440px 的屏幕显示并首次加载，两侧最大宽度 160px，较小宽屏可用宽度约 120px；请使用对应宽度或响应式素材。平板和手机不新加载侧栏代码，已加载广告缩小窗口后隐藏，恢复宽屏不会重复执行。访客可分别关闭，刷新页面后恢复。</p>
             <div class="settings-grid">
                 <div class="setting-panel">
                     <div class="setting-panel-head">
@@ -1176,6 +1177,32 @@
                         </label>
                     </div>
                     <textarea class="field-input textarea" id="ad-footer-html" placeholder="广告 HTML / JS 代码"></textarea>
+                </div>
+                <div class="setting-panel">
+                    <div class="setting-panel-head">
+                        <div>
+                            <div class="setting-panel-title">左侧对联广告</div>
+                            <div class="setting-panel-desc">宽屏固定在主内容左侧，不占用身份卡片区域。</div>
+                        </div>
+                        <label class="panel-toggle" title="启用左侧对联广告">
+                            <input type="checkbox" id="ad-left-enabled" aria-label="启用左侧对联广告">
+                            <span></span>
+                        </label>
+                    </div>
+                    <textarea class="field-input textarea mono" id="ad-left-html" placeholder="左侧竖幅广告 HTML / JS / 脚本 URL"></textarea>
+                </div>
+                <div class="setting-panel">
+                    <div class="setting-panel-head">
+                        <div>
+                            <div class="setting-panel-title">右侧对联广告</div>
+                            <div class="setting-panel-desc">宽屏固定在主内容右侧，可单独启用或关闭。</div>
+                        </div>
+                        <label class="panel-toggle" title="启用右侧对联广告">
+                            <input type="checkbox" id="ad-right-enabled" aria-label="启用右侧对联广告">
+                            <span></span>
+                        </label>
+                    </div>
+                    <textarea class="field-input textarea mono" id="ad-right-html" placeholder="右侧竖幅广告 HTML / JS / 脚本 URL"></textarea>
                 </div>
             </div>
             <div class="stacked-actions">
@@ -1269,13 +1296,13 @@
 
     <div class="toast-admin" id="toast"></div>
 
-    <script src="ad-code.js?v=1.2.21"></script>
+    <script src="ad-code.js?v=1.2.22"></script>
     <script>
         // Session state
         let sessionPassword = '';
         let sessionToken = '';
         let currentConfig = {};
-        const AD_SLOTS = ['head', 'top', 'inline', 'footer'];
+        const AD_SLOTS = AdCode.SLOTS;
 
         function encodeAdHtml(value) {
             return AdCode.encode(value);
@@ -1737,6 +1764,7 @@
                 currentConfig = result.data || currentConfig;
                 const savedAds = currentConfig.ads || {};
                 const lostSlots = AD_SLOTS.filter(slot => {
+                    if (!savedAds[slot]) return true;
                     const submitted = submittedAds[slot] || {};
                     const saved = savedAds[slot] || {};
                     return Boolean(submitted.enabled) !== Boolean(saved.enabled) || decodeAdHtml(submitted.html) !== decodeAdHtml(saved.html) ||
@@ -1799,6 +1827,10 @@
                 for (const slot of AD_SLOTS) {
                     const ad = ads[slot] || {};
                     const saved = (currentConfig.ads || {})[slot] || {};
+                    if (!ads[slot]) {
+                        mismatch = true;
+                        details.push(`${slot}: 后端缺少此广告位，请同步更新并重启 Node.js`);
+                    }
                     if (decodeAdHtml(ad.html) !== decodeAdHtml(saved.html) || Boolean(ad.enabled) !== Boolean(saved.enabled) ||
                         (ad.format || 'auto') !== (saved.format || 'auto') || (ad.mode || 'auto') !== (saved.mode || 'auto')) mismatch = true;
                     const code = AdCode.normalize(ad.html, ad.format);

@@ -39,9 +39,13 @@ test('ad API saves exact code/metadata, injects normalized Head and rejects trun
         return { status:res.status, data:await res.json() };
     };
     const code = 'window.fixtureHead = "广告";';
+    const initial = await (await fetch(address + '/api')).json();
+    for (const slot of AdCode.SLOTS) assert.equal(initial.data.ads[slot].enabled, false);
     const ads = {
         head:{ enabled:true, html:AdCode.encode(code), format:'js', mode:'page' },
-        top:{ enabled:true, html:AdCode.encode('<script>document.write("fixture")</script>'), format:'html', mode:'frame' }
+        top:{ enabled:true, html:AdCode.encode('<script>document.write("fixture")</script>'), format:'html', mode:'frame' },
+        left:{ enabled:true, html:AdCode.encode('document.write("left-广告")'), format:'js', mode:'frame' },
+        right:{ enabled:true, html:AdCode.encode('<div>right fixture</div>'), format:'html', mode:'page' }
     };
     assert.equal((await post({ data:{ads} })).status, 401);
     const saved = await post({ password, data:{ads} });
@@ -49,6 +53,7 @@ test('ad API saves exact code/metadata, injects normalized Head and rejects trun
     assert.deepEqual(saved.data.data.ads.top, ads.top);
     const publicConfig = await (await fetch(address + '/api')).json();
     assert.deepEqual(publicConfig.data.ads.head, ads.head);
+    for (const slot of ['left','right']) assert.deepEqual(publicConfig.data.ads[slot], ads[slot]);
     assert.equal(JSON.stringify(publicConfig).includes(password), false);
     for (const url of ['/', '/index.html']) {
         const response = await fetch(address + url);
@@ -62,6 +67,10 @@ test('ad API saves exact code/metadata, injects normalized Head and rejects trun
         {top:{enabled:true,html:AdCode.PREFIX+'abc'}},
         {top:{enabled:true,html:'javascript:alert(1)',format:'url'}},
         {top:{enabled:true,html:'fixture',mode:'invalid'}},
+        {left:{enabled:true,html:'x'.repeat(AdCode.MAX_LENGTH+1)}},
+        {right:{enabled:true,html:AdCode.PREFIX+'!bad!'}},
+        {left:{enabled:true,html:'javascript:alert(1)',format:'url'}},
+        {right:{enabled:true,html:'fixture',mode:'invalid'}},
         []
     ]) {
         assert.equal((await post({password,data:{ads:bad}})).status,400);
@@ -69,7 +78,15 @@ test('ad API saves exact code/metadata, injects normalized Head and rejects trun
     }
     const legacy = '<script>window.legacyAd = 1;</script>';
     assert.equal((await post({password,data:{ads:{head:{enabled:true,html:legacy}}}})).status,200);
+    const partial = await (await fetch(address + '/api')).json();
+    for (const slot of ['top','left','right']) assert.deepEqual(partial.data.ads[slot], ads[slot], 'partial updates preserve other slots');
     assert.ok((await (await fetch(address)).text()).includes(legacy));
     await post({password,data:{ads:{head:{enabled:false,html:legacy}}}});
     assert.equal((await (await fetch(address)).text()).includes(legacy),false);
+    const maximum = Object.fromEntries(AdCode.SLOTS.map(slot => [slot, {enabled:false,html:'x'.repeat(AdCode.MAX_LENGTH),format:'html',mode:'auto'}]));
+    assert.equal((await post({password,data:{ads:maximum}})).status,200,'all six maximum-size slots fit the bounded request');
+    const disabled = await post({password,data:{ads:{left:{enabled:false,html:''},right:{enabled:false,html:''}}}});
+    assert.equal(disabled.status,200);
+    assert.equal(disabled.data.data.ads.left.enabled,false);
+    assert.equal(disabled.data.data.ads.right.enabled,false);
 });

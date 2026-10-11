@@ -23,6 +23,7 @@
   - [Nginx 部署](#nginx-部署)
   - [宝塔面板部署](#宝塔面板部署)
 - [旧版本迁移](#-旧版本迁移)
+- [开发总结与复用](docs/DEVELOPMENT.md)
 - [API 说明](#-api-说明)
 - [常见问题](#-常见问题)
 - [许可证](#-许可证)
@@ -41,7 +42,7 @@
 - ☀️🌙 **日夜主题** — 亮色/暗色主题自由切换，偏好自动保存
 - 📱 **响应式设计** — 完美适配手机、平板和桌面设备
 - 🔐 **后台管理** — 密码保护的管理面板，可配置地图服务、API Key、网站品牌
-- 📣 **广告位管理** — 后台配置前台顶部、信息区下方、底部广告位
+- 📣 **广告位管理** — 后台配置 Head、顶部、信息区下方、底部及左右对联广告位
 - ₿ **加密币捐赠** — 后台配置前台底部捐赠地址，支持一键复制
 - 🌐 **多语言选择** — 默认英文，支持英文、简体中文、繁体中文、日文
 - ⬆️ **后台更新** — 后台检查 GitHub 版本并执行安全更新
@@ -83,7 +84,8 @@ identitygen/
 ├── config.example.json  # 配置文件模板 — 供参考，实际配置由 server.js 自动创建
 ├── config.json          # （运行时自动生成，不纳入 Git）存储密码、API Key、网站设置等
 ├── docs/
-│   └── MIGRATION.md     # 旧版本迁移指南
+│   ├── MIGRATION.md     # 旧版本迁移指南
+│   └── DEVELOPMENT.md   # 近期开发决策、测试发布经验与可调用 skill
 ├── style.css            # 全局样式 — 亮色/暗色主题
 ├── app.js               # 主逻辑 — 生成、i18n、地图、粒子动画
 ├── bin-ui.js            # BIN 查询弹窗 — 四语言、键盘导航、结果与错误提示
@@ -144,7 +146,7 @@ PORT=8080 node server.js
 | 页脚文字 | 自定义页脚内容（支持 HTML） | `© 2026 IdentityGen.Xyz` |
 | 默认语言 | 前台默认显示语言 | English |
 | Card BIN/IIN | 启用查询、HandyAPI 双 Key、Binlist 回退和独立测试 | 启用查询/回退；Key 留空 |
-| 广告位 | Head / AdSense、顶部、信息区下方、地图下方广告代码 | 关闭 |
+| 广告位 | Head / AdSense、顶部、信息区下方、地图下方、左右对联广告代码 | 关闭 |
 | 加密币捐赠 | 前台底部捐赠地址列表 | 关闭 |
 | 系统版本 | 检查远端版本、执行安全更新 | 当前 Git 版本 |
 
@@ -154,7 +156,9 @@ Head / AdSense 代码由 Node.js 服务端注入首页 `<head>`，适合平台�
 
 正文广告默认自动选择执行方式：普通 JS 在独立广告文档中执行，原生解析 HTML 和 `document.write`，每个广告位拥有独立变量，经典外链脚本按顺序加载；慢加载不会再因短时空白而被删除。AdSense / Google Publisher Tag 使用页面内模式，依赖首页 DOM/全局平台库的其他广告也可手动选择「页面内」。不改变配置时，切换国家或语言不会重新执行广告。独立文档只隔离布局和变量，**不是安全沙箱**；只有受信管理员可设置广告，请只使用可信平台脚本。
 
-点击后台「检查已保存配置」可核对前台配置接口和 Head 注入，不会执行代码或访问广告平台；点击「查看前台诊断」或访问 `index.html?ad_debug=1` 可查看三个正文广告位的加载、内容、空白或错误状态。诊断不等于平台已填充：域名审核、无广告库存、地区限制、HTTPS 混合内容、广告拦截和浏览器隐私策略均可能导致空白，需结合 Console/Network 和平台后台检查。正常前台不会显示诊断文字。
+左右对联广告在后台分别启用和配置 `ads.left` / `ads.right`，沿用代码类型和执行方式。宽度 ≥ 1440px 时固定在主内容两侧，推荐 120 × 600 竖幅或响应式素材；160 × 600 素材建议屏幕宽度 ≥ 1504px，以获得完整宽度。容器高度随窗口约束，可滚动，不覆盖主内容。平板/手机不新加载侧栏代码；已经加载的广告在缩小窗口后隐藏，恢复宽屏复用而不重复执行。访客可用关闭按钮分别关闭，刷新页面恢复；后台禁用则对所有访客生效。旧配置缺少这两个字段时默认关闭；部分广告配置更新不会清空其他广告位。
+
+点击后台「检查已保存配置」可核对前台配置接口、全部六个广告位和 Head 注入，不会执行代码或访问广告平台；点击「查看前台诊断」或访问 `index.html?ad_debug=1` 可查看五个正文广告位的加载、内容、空白或错误状态（侧栏诊断随侧栏在宽屏展示）。诊断不等于平台已填充：域名审核、无广告库存、地区限制、HTTPS 混合内容、广告拦截和浏览器隐私策略均可能导致空白，需结合 Console/Network 和平台后台检查。正常前台不会显示诊断文字。
 
 页脚品牌文案仍只支持有限 HTML并过滤脚本，与「地图下方广告位」是不同设置；捐赠地址以纯文本显示并支持复制。
 
@@ -199,7 +203,7 @@ Head / AdSense 代码由 Node.js 服务端注入首页 `<head>`，适合平台�
 - **更新版本**：执行 `git pull --ff-only`，只允许安全的快进更新。
 - **版本显示**：优先读取仓库根目录 `VERSION` 文件，同时显示当前提交和远端提交。
 
-自动更新不会覆盖本地未提交修改。若服务器代码有改动、本地分支有自定义提交或与远端分叉，后台会拒绝更新，并提示手动处理 Git 状态。
+自动更新会先将本地未提交代码改动（含未跟踪文件，不含被忽略的运行时配置）自动暂存，再执行快进更新。成功后改动保留在 Git stash 中，失败会尝试恢复；若自动暂存失败、本地分支有自定义提交或与远端分叉，需手动处理。详见 [迁移指南](docs/MIGRATION.md)。
 
 从 `v1.2.11` 开始，更新成功后服务会自动重启以加载新版 `server.js`，后台页面会在数秒后刷新。若从旧版本升级到 `v1.2.11` 后仍看到旧接口行为，请手动重启一次 Node.js 服务：
 
@@ -259,7 +263,7 @@ config.example.json
 sudo mkdir -p /www/wwwroot/identitygen
 
 # 只上传发布文件，不上传本机运行时 config.json
-scp server.js bin-lookup.js bin-ui.js VERSION index.html admin.html style.css app.js data.js config.example.json user@your-server:/www/wwwroot/identitygen/
+scp server.js bin-lookup.js bin-ui.js ad-code.js VERSION index.html admin.html style.css app.js data.js config.example.json user@your-server:/www/wwwroot/identitygen/
 
 # 使用 PM2 持久化运行
 cd /www/wwwroot/identitygen
@@ -363,6 +367,7 @@ sudo certbot --nginx -d your-domain.com
    app.js
    bin-ui.js
    bin-lookup.js
+   ad-code.js
    data.js
    config.example.json
    ```
@@ -373,7 +378,7 @@ sudo certbot --nginx -d your-domain.com
 
 ```bash
 # 使用 scp 命令
-scp server.js bin-lookup.js bin-ui.js VERSION index.html admin.html style.css app.js data.js config.example.json root@你的服务器IP:/www/wwwroot/id.example.com/
+scp server.js bin-lookup.js bin-ui.js ad-code.js VERSION index.html admin.html style.css app.js data.js config.example.json root@你的服务器IP:/www/wwwroot/id.example.com/
 
 # 或使用 FileZilla 等 SFTP 工具连接上传
 ```
@@ -443,7 +448,7 @@ location / {
 | 问题 | 解决方案 |
 |------|----------|
 | 页面显示 404 | 检查 Node.js 服务是否正在运行，Nginx 反向代理是否配置正确 |
-| 样式/脚本未加载 | 检查 `style.css`、`app.js`、`data.js`、`bin-ui.js` 是否在同一目录；服务端必须包含 `bin-lookup.js` |
+| 样式/脚本未加载 | 检查 `style.css`、`app.js`、`data.js`、`bin-ui.js`、`ad-code.js` 是否在同一目录；服务端必须包含 `bin-lookup.js` 和 `ad-code.js` |
 | SSL 证书申请失败 | 确认域名已正确解析到服务器 IP，检查 80 端口是否开放 |
 | 后台无法登录 | 首次安装从服务器本机 `config.json` 读取生成的密码；升级保留已有强密码，旧默认密码会自动轮换；确认 Node.js 服务正在运行 |
 | 修改密码后无法登录 | 确认 `config.json` 不被 Git 追踪（已在 `.gitignore` 中），避免 `git pull` 覆盖配置 |

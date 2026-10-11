@@ -8,6 +8,7 @@
     const MAX_LENGTH = 30000;
     const FORMATS = ['auto', 'html', 'js', 'url'];
     const MODES = ['auto', 'frame', 'page'];
+    const SLOTS = ['head', 'top', 'inline', 'footer', 'left', 'right'];
 
     function decode(value) {
         const raw = String(value || '');
@@ -57,5 +58,5 @@
         return /<script\b/i.test(html) && !/adsbygoogle|googletag|googlesyndication\.com|securepubads\.g\.doubleclick\.net/i.test(html) ? 'frame' : 'page';
     }
 
-    return { PREFIX, MAX_LENGTH, FORMATS, MODES, decode, encode, normalize, executionMode };
+    return { PREFIX, MAX_LENGTH, FORMATS, MODES, SLOTS, decode, encode, normalize, executionMode };
 });

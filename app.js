@@ -15,6 +15,9 @@ let adRenderSeq = 0;
 let adRenderBatch = 0;
 let adRenderQueue = Promise.resolve();
 const adCleanup = new WeakMap();
+const SIDE_AD_SLOTS = ['left', 'right'];
+const sideAdMedia = window.matchMedia('(min-width: 1440px)');
+const dismissedSideAds = new Set();
 
 const $ = id => document.getElementById(id);
 const pick = arr => arr[Math.floor(Math.random() * arr.length)];
@@ -89,7 +92,9 @@ function setAdStatus(container, state) {
         disabled:'未启用或没有代码', loading:'正在加载广告代码',
         ready:'广告内容已插入；实际填充由广告平台决定',
         pending:'代码已加载但暂无可见内容：检查平台填充、域名授权和广告拦截',
-        error:'加载失败：检查浏览器 Console / Network、脚本地址、HTTPS 和广告拦截'
+        error:'加载失败：检查浏览器 Console / Network、脚本地址、HTTPS 和广告拦截',
+        suppressed:'侧栏广告仅在宽度 ≥ 1440px 时加载和显示',
+        dismissed:'已关闭此侧栏广告；刷新页面后恢复'
     };
     label.textContent = `${container.id} · ${messages[state] || state}`;
 }
@@ -379,6 +384,7 @@ const I18N = {
         theme_light: '☀️',
         theme_dark: '🌙',
         donation_title: '支持 IdentityGen',
+        ad_label: '广告', ad_close: '关闭广告', ad_left: '左侧广告', ad_right: '右侧广告',
         donation_note: '感谢你的捐赠支持。',
         donation_copy: '复制',
         donation_copied: '✅ 地址已复制',
@@ -412,6 +418,7 @@ const I18N = {
         theme_light: '☀️',
         theme_dark: '🌙',
         donation_title: '支持 IdentityGen',
+        ad_label: '廣告', ad_close: '關閉廣告', ad_left: '左側廣告', ad_right: '右側廣告',
         donation_note: '感謝你的捐贈支持。',
         donation_copy: '複製',
         donation_copied: '✅ 地址已複製',
@@ -445,6 +452,7 @@ const I18N = {
         theme_light: '☀️',
         theme_dark: '🌙',
         donation_title: 'Support IdentityGen',
+        ad_label: 'Advertisement', ad_close: 'Close advertisement', ad_left: 'Left advertisement', ad_right: 'Right advertisement',
         donation_note: 'Thank you for supporting this project.',
         donation_copy: 'Copy',
         donation_copied: '✅ Address copied',
@@ -478,6 +486,7 @@ const I18N = {
         theme_light: '☀️',
         theme_dark: '🌙',
         donation_title: 'IdentityGen を支援',
+        ad_label: '広告', ad_close: '広告を閉じる', ad_left: '左側の広告', ad_right: '右側の広告',
         donation_note: 'プロジェクト支援ありがとうございます。',
         donation_copy: 'コピー',
         donation_copied: '✅ アドレスをコピーしました',
@@ -507,6 +516,14 @@ function applyI18n() {
     const langSelect = $('lang-select');
     if (langSelect) langSelect.value = currentLang;
     document.documentElement.lang = currentLang;
+    SIDE_AD_SLOTS.forEach(slot => {
+        const rail = $(`side-ad-${slot}`);
+        if (rail) rail.setAttribute('aria-label', t(`ad_${slot}`));
+    });
+    document.querySelectorAll('[data-ad-close]').forEach(button => {
+        button.setAttribute('aria-label', t('ad_close'));
+        button.title = t('ad_close');
+    });
 
     // Map note
     const prov = gc('map_provider') || 'osm';
@@ -531,10 +548,17 @@ function setLang(lang) {
 
 async function renderAdsNow(batchId) {
     const ads = serverConfig.ads || {};
-    for (const slot of ['top', 'inline', 'footer']) {
+    for (const slot of AdCode.SLOTS.filter(slot => slot !== 'head')) {
         if (batchId !== adRenderBatch) return;
         const el = $(`ad-${slot}`);
         if (!el) continue;
+        const rail = SIDE_AD_SLOTS.includes(slot) ? $(`side-ad-${slot}`) : null;
+        if (rail && (dismissedSideAds.has(slot) || !sideAdMedia.matches)) {
+            rail.hidden = true;
+            // Retain existing frames on resize; returning to wide layout is not a new impression.
+            if (!el.dataset.adConfigKey && !dismissedSideAds.has(slot)) setAdStatus(el, 'suppressed');
+            continue;
+        }
         const cfg = ads[slot] || {};
         let adHtml, mode;
         try {
@@ -550,11 +574,15 @@ async function renderAdsNow(batchId) {
             el.style.removeProperty('--ad-width');
             el.style.removeProperty('--ad-height');
             el.hidden = true;
+            if (rail) rail.hidden = true;
             setAdStatus(el, 'error');
             continue;
         }
         const key = JSON.stringify([Boolean(cfg.enabled), adHtml, mode]);
-        if (el.dataset.adConfigKey === key) continue;
+        if (el.dataset.adConfigKey === key) {
+            if (rail) rail.hidden = el.hidden;
+            continue;
+        }
         el.dataset.adConfigKey = key;
         const cleanup = adCleanup.get(el);
         if (cleanup) { cleanup(); adCleanup.delete(el); }
@@ -566,6 +594,7 @@ async function renderAdsNow(batchId) {
             el.style.setProperty('--ad-width', dimensions.width ? `${dimensions.width}px` : '100%');
             el.style.setProperty('--ad-height', dimensions.height ? `${dimensions.height}px` : 'auto');
             el.hidden = false;
+            if (rail) rail.hidden = false;
             if (mode === 'frame') {
                 renderAdFrame(el, adHtml, renderId);
                 continue;
@@ -576,6 +605,7 @@ async function renderAdsNow(batchId) {
                 failed = true;
                 console.warn(`Ad render failed for slot "${slot}"`, error);
             });
+            if (!isAdRenderActive(el, renderId)) continue;
             // Keep empty placeholders: a Head loader may populate them asynchronously.
             watchPageAd(el, renderId, failed);
         } else {
@@ -584,9 +614,31 @@ async function renderAdsNow(batchId) {
             el.style.removeProperty('--ad-width');
             el.style.removeProperty('--ad-height');
             el.hidden = true;
+            if (rail) rail.hidden = true;
             setAdStatus(el, 'disabled');
         }
     }
+}
+
+function initSideAds() {
+    document.querySelectorAll('[data-ad-close]').forEach(button => {
+        button.addEventListener('click', () => {
+            const slot = button.dataset.adClose;
+            if (!SIDE_AD_SLOTS.includes(slot)) return;
+            dismissedSideAds.add(slot);
+            const el = $(`ad-${slot}`);
+            const cleanup = adCleanup.get(el);
+            if (cleanup) { cleanup(); adCleanup.delete(el); }
+            delete el.dataset.adRenderId;
+            el.innerHTML = '';
+            el.hidden = true;
+            $(`side-ad-${slot}`).hidden = true;
+            setAdStatus(el, 'dismissed');
+            $('gen-btn').focus({ preventScroll:true });
+        });
+    });
+    if (sideAdMedia.addEventListener) sideAdMedia.addEventListener('change', renderAds);
+    else sideAdMedia.addListener(renderAds);
 }
 
 function renderAds() {
@@ -673,6 +725,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     applyTheme(currentTheme);
     initParticles();
     setupCountryNav();
+    initSideAds();
     // Load server config before applying i18n and generating identity
     await loadServerConfig();
     const savedLang = localStorage.getItem(LANG_EXPLICIT_KEY) === '1'

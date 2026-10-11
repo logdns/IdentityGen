@@ -67,7 +67,9 @@ const DEFAULT_CONFIG = {
         head: { enabled: false, html: '' },
         top: { enabled: false, html: '' },
         inline: { enabled: false, html: '' },
-        footer: { enabled: false, html: '' }
+        footer: { enabled: false, html: '' },
+        left: { enabled: false, html: '' },
+        right: { enabled: false, html: '' }
     },
     donation: {
         enabled: false,
@@ -78,7 +80,7 @@ const DEFAULT_CONFIG = {
 };
 
 const LANGS = new Set(['en', 'zh-CN', 'zh-TW', 'ja']);
-const AD_SLOTS = ['head', 'top', 'inline', 'footer'];
+const AD_SLOTS = AdCode.SLOTS;
 const SESSIONS = new Map();
 const SESSION_TTL = 1000 * 60 * 60 * 6;
 const LOGIN_ATTEMPTS = new Map();
@@ -950,7 +952,7 @@ async function handleAPI(req, res, parsedUrl) {
             }
             for (const field of allowed) {
                 if (field in data) {
-                    config[field] = data[field];
+                    config[field] = field === 'ads' ? { ...config.ads, ...data.ads } : data[field];
                 }
             }
             const normalized = normalizeConfig(config);
